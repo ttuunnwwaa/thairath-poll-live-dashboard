@@ -10,6 +10,7 @@ import {
   parseDelimitedText,
   parseEntries,
   secureRandomIndex,
+  spinEaseOut,
   targetRotation,
   uid,
   validateProjectPayload,
@@ -54,11 +55,13 @@ function defaultNumbers() {
 
 function defaultState() {
   return {
-    version: 1,
+    version: 2,
     projectId: uid("project"),
     sessionId: uid("session"),
     campaignTitle: "แคมเปญทายผลแชมป์ฟุตบอลโลก 2026",
     campaignSubtitle: "ร่วมกับไทยรัฐกรุ๊ป",
+    topbarEyebrow: "OFFICIAL DRAW CONSOLE",
+    topbarStatus: "พร้อมสุ่ม",
     numbers: defaultNumbers(),
     history: [],
     settings: {
@@ -70,7 +73,10 @@ function defaultState() {
       fontSize: 16,
       textDirection: "radial",
       showLabels: true,
+      topbarVisible: true,
+      topbarLogoSize: 58,
       spinDuration: 7,
+      resultDelay: 1.5,
       minRotations: 6,
       pointerStrength: 70,
       removeConfirmed: true,
@@ -91,6 +97,7 @@ function defaultState() {
     },
     assets: {
       background: null,
+      topbarLogo: null,
       logo: null,
       pointer: null,
       segmentImage: null,
@@ -114,6 +121,8 @@ let confettiFrame = 0;
 let resizeQueued = false;
 let focusBeforeModal = null;
 let wheelResizeObserver = null;
+let holdingResult = false;
+let resultDelayTimer = 0;
 
 const canvas = $("#wheelCanvas");
 const context = canvas.getContext("2d", { alpha: false });
@@ -181,9 +190,16 @@ function updateDashboard() {
   $("#nextDrawNumber").textContent = `#${String(state.history.length + 1).padStart(2, "0")}`;
   $("#latestNumber").textContent = latest?.number ?? "—";
   $("#latestTime").textContent = latest ? formatThaiDate(latest.timestamp) : "ยังไม่มีผลการสุ่ม";
-  $(".live-pill").innerHTML = `<span></span> ${spinning ? "กำลังสุ่ม" : active ? "พร้อมสุ่ม" : "ไม่มีหมายเลข"}`;
-  $("#spinButton").disabled = spinning || active === 0;
-  $("#panelToggle").disabled = spinning;
+  const statusText = spinning
+    ? "กำลังสุ่ม"
+    : holdingResult
+      ? "วงล้อหยุดแล้ว"
+      : active
+        ? state.topbarStatus
+        : "ไม่มีหมายเลข";
+  $("#topbarStatus").textContent = statusText;
+  $("#spinButton").disabled = spinning || holdingResult || active === 0;
+  $("#panelToggle").disabled = spinning || holdingResult;
 
   const recent = state.history.slice(-3).reverse();
   $("#recentHistory").innerHTML = recent.length
@@ -205,9 +221,14 @@ function applyVisualSettings() {
   root.style.setProperty("--hub-size", `${state.settings.logoSize}%`);
   root.style.setProperty("--pointer-size", `${state.settings.pointerSize}px`);
   root.style.setProperty("--pointer-offset", `${state.settings.pointerOffset}px`);
+  root.style.setProperty("--topbar-logo-size", `${state.settings.topbarLogoSize}px`);
   root.style.setProperty("--shake-angle", `${(state.settings.pointerStrength / 100) * 12}deg`);
   $("#campaignTitle").textContent = state.campaignTitle;
   $("#campaignSubtitle").textContent = state.campaignSubtitle;
+  $("#topbarEyebrow").textContent = state.topbarEyebrow;
+  $("#app").classList.toggle("topbar-hidden", !state.settings.topbarVisible);
+  $("#topbarReveal").hidden = state.settings.topbarVisible;
+  $("#hideTopbarButton").setAttribute("aria-pressed", String(!state.settings.topbarVisible));
   $("#app").classList.toggle("performance-mode", state.settings.performanceMode);
   const backgroundLayer = $("#eventBackground");
   backgroundLayer.style.backgroundImage = state.assets.background
@@ -220,6 +241,11 @@ function applyVisualSettings() {
       ? `blur(${state.settings.backgroundBlur}px)`
       : "none";
   backgroundLayer.hidden = !state.assets.background;
+
+  const topbarLogo = $("#topbarLogo");
+  topbarLogo.hidden = !state.assets.topbarLogo;
+  $("#topbarMark").hidden = Boolean(state.assets.topbarLogo);
+  if (state.assets.topbarLogo) topbarLogo.src = state.assets.topbarLogo;
 
   const logo = $("#centerLogo");
   logo.hidden = !state.assets.logo;
@@ -243,6 +269,10 @@ function applyStateToControls() {
     allowDuplicates: state.settings.allowDuplicates,
     campaignTitleInput: state.campaignTitle,
     campaignSubtitleInput: state.campaignSubtitle,
+    topbarEyebrowInput: state.topbarEyebrow,
+    topbarStatusInput: state.topbarStatus,
+    topbarVisible: state.settings.topbarVisible,
+    topbarLogoSize: state.settings.topbarLogoSize,
     primaryColor: state.settings.primary,
     secondaryColor: state.settings.secondary,
     borderColor: state.settings.border,
@@ -254,6 +284,7 @@ function applyStateToControls() {
     textDirection: state.settings.textDirection,
     showLabels: state.settings.showLabels,
     spinDuration: state.settings.spinDuration,
+    resultDelay: state.settings.resultDelay,
     minRotations: state.settings.minRotations,
     pointerStrength: state.settings.pointerStrength,
     removeConfirmed: state.settings.removeConfirmed,
@@ -287,6 +318,8 @@ function applyStateToControls() {
 function updateOutputs() {
   $("#fontSizeValue").textContent = `${state.settings.fontSize}px`;
   $("#durationValue").textContent = `${state.settings.spinDuration} วินาที`;
+  const resultDelay = Math.max(0, Number(state.settings.resultDelay) || 0);
+  $("#resultDelayValue").textContent = resultDelay === 0 ? "แสดงทันที" : `${resultDelay.toFixed(1)} วินาที`;
   $("#rotationsValue").textContent = `${state.settings.minRotations} รอบ`;
   $("#shakeValue").textContent = `${state.settings.pointerStrength}%`;
   $("#volumeValue").textContent = `${state.settings.volume}%`;
@@ -295,6 +328,7 @@ function updateOutputs() {
   $("#logoSizeValue").textContent = `${state.settings.logoSize}%`;
   $("#pointerSizeValue").textContent = `${state.settings.pointerSize}px`;
   $("#pointerOffsetValue").textContent = `${state.settings.pointerOffset}px`;
+  $("#topbarLogoSizeValue").textContent = `${state.settings.topbarLogoSize}px`;
   const ratio = contrastRatio(state.settings.text, state.settings.primary);
   $("#contrastNote").textContent =
     ratio >= 3 ? `✓ Contrast ผ่านเกณฑ์พื้นฐาน (${ratio.toFixed(1)}:1)` : `⚠ Contrast ค่อนข้างต่ำ (${ratio.toFixed(1)}:1)`;
@@ -460,7 +494,7 @@ function adjustHex(hex, delta) {
 }
 
 function startDraw() {
-  if (spinning || !modal.hidden) return;
+  if (spinning || holdingResult || !modal.hidden) return;
   const pool = activeNumbers();
   if (!pool.length) {
     showToast("ไม่มีหมายเลขในวงล้อ กรุณาเพิ่มหรือคืนหมายเลขก่อน", "error");
@@ -494,7 +528,7 @@ function startDraw() {
 
   function animate(time) {
     const progress = Math.min(1, (time - start) / duration);
-    const eased = 1 - (1 - progress) ** 4;
+    const eased = spinEaseOut(progress);
     wheelRotation = from + (to - from) * eased;
     drawWheel();
     const segment = winnerIndexAtPointer(wheelRotation, pool.length);
@@ -506,16 +540,25 @@ function startDraw() {
     else {
       wheelRotation = to;
       spinning = false;
+      holdingResult = true;
       document.body.classList.remove("spinning");
       updateDashboard();
       const stoppedIndex = winnerIndexAtPointer(wheelRotation, pool.length);
       if (stoppedIndex !== winnerIndex) {
         pendingWinner = null;
+        holdingResult = false;
+        updateDashboard();
         showToast("ตรวจพบตำแหน่งวงล้อคลาดเคลื่อน ระบบยกเลิกผลเพื่อความปลอดภัย", "error");
         return;
       }
-      playWinnerSound();
-      openWinnerModal();
+      const delay = Math.max(0, Number(state.settings.resultDelay) || 0) * 1000;
+      resultDelayTimer = window.setTimeout(() => {
+        resultDelayTimer = 0;
+        holdingResult = false;
+        updateDashboard();
+        playWinnerSound();
+        openWinnerModal();
+      }, delay);
     }
   }
   requestAnimationFrame(animate);
@@ -602,7 +645,7 @@ function closeWinnerModal({ discard = true } = {}) {
 }
 
 function setModalBackgroundInert(inert) {
-  for (const element of [$(".topbar"), $(".stage-shell"), $("#controlPanel"), $("#panelBackdrop")]) {
+  for (const element of [$(".topbar"), $("#topbarReveal"), $(".stage-shell"), $("#controlPanel"), $("#panelBackdrop")]) {
     element.inert = inert;
     if (inert) element.setAttribute("aria-hidden", "true");
     else if (element === $("#controlPanel")) {
@@ -1052,6 +1095,10 @@ function bindControls() {
   const appearanceBindings = {
     campaignTitleInput: ["campaignTitle", "text"],
     campaignSubtitleInput: ["campaignSubtitle", "text"],
+    topbarEyebrowInput: ["topbarEyebrow", "text"],
+    topbarStatusInput: ["topbarStatus", "text"],
+    topbarVisible: ["topbarVisible", "checked"],
+    topbarLogoSize: ["topbarLogoSize", "number"],
     primaryColor: ["primary", "color"],
     secondaryColor: ["secondary", "color"],
     borderColor: ["border", "color"],
@@ -1063,6 +1110,7 @@ function bindControls() {
     textDirection: ["textDirection", "setting"],
     showLabels: ["showLabels", "checked"],
     spinDuration: ["spinDuration", "number"],
+    resultDelay: ["resultDelay", "number"],
     minRotations: ["minRotations", "number"],
     pointerStrength: ["pointerStrength", "number"],
     removeConfirmed: ["removeConfirmed", "checked"],
@@ -1094,7 +1142,17 @@ function bindControls() {
           if (kind === "text") draft[key] = value;
           else draft.settings[key] = value;
         },
-        { redraw: !["volume", "soundEnabled", "confettiEnabled", "escapeCloses"].includes(key) },
+        {
+          redraw: ![
+            "volume",
+            "soundEnabled",
+            "confettiEnabled",
+            "escapeCloses",
+            "topbarVisible",
+            "topbarLogoSize",
+            "resultDelay",
+          ].includes(key),
+        },
       );
       updateOutputs();
       if (["logoSize", "pointerSize", "pointerOffset"].includes(key)) resizeCanvas();
@@ -1115,6 +1173,7 @@ function bindControls() {
   );
 
   $("#backgroundUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "background"));
+  $("#topbarLogoUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "topbarLogo"));
   $("#logoUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "logo"));
   $("#pointerUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "pointer"));
   $("#segmentImageUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "segmentImage"));
@@ -1122,6 +1181,24 @@ function bindControls() {
     handleAssetUpload(event.target, "winnerSound", { audio: true }),
   );
   $("#previewSound").addEventListener("click", playWinnerSound);
+  $("#hideTopbarButton").addEventListener("click", () => {
+    updateState(
+      (draft) => {
+        draft.settings.topbarVisible = false;
+      },
+      { redraw: false, controls: true },
+    );
+    $("#topbarReveal").focus();
+  });
+  $("#topbarReveal").addEventListener("click", () => {
+    updateState(
+      (draft) => {
+        draft.settings.topbarVisible = true;
+      },
+      { redraw: false, controls: true },
+    );
+    $("#hideTopbarButton").focus();
+  });
 
   $$(".danger-outline[data-remove-asset]").forEach((button) =>
     button.addEventListener("click", () => {
@@ -1317,6 +1394,7 @@ async function initialize() {
     () => {
       wheelResizeObserver?.disconnect();
       cancelAnimationFrame(confettiFrame);
+      clearTimeout(resultDelayTimer);
       audioContext?.close().catch(() => {});
     },
     { once: true },

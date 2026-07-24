@@ -21,22 +21,25 @@
       <div class="event-background" id="eventBackground" aria-hidden="true" hidden></div>
       <div class="ambient ambient-a"></div>
       <div class="ambient ambient-b"></div>
-      <header class="topbar">
+      <header class="topbar" id="topbar">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true"><span>26</span></div>
+          <div class="brand-mark" id="topbarMark" aria-hidden="true"><span>26</span></div>
+          <img class="topbar-logo" id="topbarLogo" alt="โลโก้แถบด้านบน" hidden />
           <div>
-            <p class="eyebrow">OFFICIAL DRAW CONSOLE</p>
+            <p class="eyebrow" id="topbarEyebrow">OFFICIAL DRAW CONSOLE</p>
             <h1 id="campaignTitle">แคมเปญทายผลแชมป์ฟุตบอลโลก 2026</h1>
             <p id="campaignSubtitle">ร่วมกับไทยรัฐกรุ๊ป</p>
           </div>
         </div>
         <div class="top-actions">
-          <div class="live-pill"><span></span> พร้อมสุ่ม</div>
+          <div class="live-pill"><span></span> <b id="topbarStatus">พร้อมสุ่ม</b></div>
           <button class="icon-button" id="soundToggle" type="button" aria-label="เปิดหรือปิดเสียง" title="เสียง">♪</button>
           <button class="icon-button" id="fullscreenButton" type="button" aria-label="แสดงเต็มจอ" title="เต็มจอ">⛶</button>
+          <button class="icon-button" id="hideTopbarButton" type="button" aria-label="ซ่อนแถบด้านบน" title="ซ่อนแถบด้านบน">⌃</button>
           <button class="primary-small" id="panelToggle" type="button">ตั้งค่าระบบ <span>☰</span></button>
         </div>
       </header>
+      <button class="topbar-reveal" id="topbarReveal" type="button" aria-label="แสดงแถบด้านบน" hidden>แสดงแถบด้านบน ↓</button>
 
       <main class="stage-shell">
         <section class="stage" aria-label="เวทีสุ่มหมายเลข">
@@ -198,9 +201,18 @@
 
           <section class="tab-page" data-page="appearance">
             <div class="panel-section">
-              <h3>ข้อความบนเวที</h3>
+              <h3>แถบด้านบน</h3>
+              <label class="toggle"><input id="topbarVisible" type="checkbox" checked /><span></span><b>แสดงแถบด้านบน</b></label>
+              <label class="upload-drop">＋ เลือกโลโก้แถบด้านบน<input id="topbarLogoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
+              <div class="button-grid">
+                <button class="danger-outline" data-remove-asset="topbarLogo" type="button">คืนตรา 26 เริ่มต้น</button>
+              </div>
+              <label>ข้อความบรรทัดบน<input id="topbarEyebrowInput" type="text" maxlength="60" /></label>
               <label>ชื่อแคมเปญ<input id="campaignTitleInput" type="text" /></label>
               <label>ข้อความผู้ร่วมจัด<input id="campaignSubtitleInput" type="text" /></label>
+              <label>ข้อความสถานะ<input id="topbarStatusInput" type="text" maxlength="40" /></label>
+              <label>ขนาดโลโก้ <output id="topbarLogoSizeValue">58px</output><input id="topbarLogoSize" type="range" min="36" max="80" value="58" /></label>
+              <p class="field-note">เมื่อซ่อนแถบ จะมีปุ่มเล็กด้านขวาบนสำหรับเรียกกลับมา หรือเปิดจากการตั้งค่านี้ได้</p>
             </div>
             <div class="panel-section">
               <h3>ชุดสี</h3>
@@ -234,6 +246,7 @@
             <div class="panel-section">
               <h3>พฤติกรรมการสุ่ม</h3>
               <label>ระยะเวลาหมุน <output id="durationValue">7 วินาที</output><input id="spinDuration" type="range" min="4" max="15" value="7" /></label>
+              <label>เวลาค้างก่อนแสดงผล <output id="resultDelayValue">1.5 วินาที</output><input id="resultDelay" type="range" min="0" max="5" step="0.5" value="1.5" /></label>
               <label>จำนวนรอบขั้นต่ำ <output id="rotationsValue">6 รอบ</output><input id="minRotations" type="range" min="3" max="12" value="6" /></label>
               <label>แรงสั่นเข็ม <output id="shakeValue">70%</output><input id="pointerStrength" type="range" min="0" max="100" value="70" /></label>
             </div>

@@ -126,6 +126,11 @@ export function winnerIndexAtPointer(rotation, segmentCount) {
   return Math.floor(normalizeAngle(-rotation) / arc) % segmentCount;
 }
 
+export function spinEaseOut(progress) {
+  const clamped = Math.max(0, Math.min(1, Number(progress) || 0));
+  return 1 - (1 - clamped) ** 5;
+}
+
 export function csvEscape(value) {
   const text = String(value ?? "");
   return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;

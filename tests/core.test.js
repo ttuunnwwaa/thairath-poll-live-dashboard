@@ -10,6 +10,7 @@ import {
   parseDelimitedText,
   parseEntries,
   secureRandomIndex,
+  spinEaseOut,
   targetRotation,
   TAU,
   validateProjectPayload,
@@ -49,6 +50,14 @@ test("target rotation stops the chosen segment center at the pointer", () => {
   const arc = TAU / 10;
   assert.ok(target > 1.2 + 5 * TAU);
   assert.ok(Math.abs(normalizeAngle(target) - normalizeAngle(-(4.5) * arc)) < 1e-9);
+});
+
+test("spin easing starts fast and slows smoothly before stopping", () => {
+  assert.equal(spinEaseOut(0), 0);
+  assert.equal(spinEaseOut(1), 1);
+  assert.ok(spinEaseOut(0.1) > 0.35);
+  assert.ok(spinEaseOut(0.9) > 0.999);
+  assert.ok(spinEaseOut(0.2) - spinEaseOut(0.1) > spinEaseOut(0.9) - spinEaseOut(0.8));
 });
 
 test("pointer alignment is exact for every supported pool size", () => {
