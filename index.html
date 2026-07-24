@@ -164,7 +164,7 @@
 
           <section class="tab-page" data-page="images">
             <div class="panel-section">
-              <h3>ภาพพื้นหลังเวที</h3><p>PNG, JPEG, WebP หรือ SVG ที่ปลอดภัย ไม่เกิน 8 MB</p>
+              <h3>ภาพพื้นหลังเวที</h3><p>แนะนำ 3840×2160 px (ขั้นต่ำ 1920×1080), อัตราส่วน 16:9 และไฟล์ไม่เกิน 8 MB</p>
               <label class="upload-drop">＋ เลือกภาพพื้นหลัง<input id="backgroundUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
               <div class="form-grid two">
                 <label>การจัดวาง<select id="backgroundFit"><option value="cover">Cover</option><option value="contain">Contain</option><option value="fill">Stretch</option></select></label>
@@ -175,13 +175,14 @@
               <button class="danger-outline" data-remove-asset="background" type="button">ลบภาพพื้นหลัง</button>
             </div>
             <div class="panel-section">
-              <h3>โลโก้กลางวงล้อ</h3><p>ใช้เฉพาะโลโก้ที่ผู้จัดงานมีสิทธิ์ใช้งาน</p>
+              <h3>โลโก้กลางวงล้อ</h3><p>แนะนำ PNG/WebP พื้นโปร่งใส 1200×1200 px และเว้น Safe Area รอบโลโก้ 12%</p>
               <label class="upload-drop">＋ เลือกโลโก้<input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
               <label>ขนาดโลโก้ <output id="logoSizeValue">34%</output><input id="logoSize" type="range" min="20" max="52" value="34" /></label>
+              <label class="toggle"><input id="logoBackgroundTransparent" type="checkbox" /><span></span><b>พื้นหลังโลโก้โปร่งใส</b></label>
               <button class="danger-outline" data-remove-asset="logo" type="button">คืน Placeholder</button>
             </div>
             <div class="panel-section">
-              <h3>เข็มชี้</h3>
+              <h3>เข็มชี้</h3><p>แนะนำ PNG/WebP พื้นโปร่งใส 512×512 px โดยให้ปลายเข็มชี้ลงด้านล่าง</p>
               <label class="upload-drop">＋ เลือกภาพเข็ม<input id="pointerUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
               <div class="form-grid two">
                 <label>ขนาด <output id="pointerSizeValue">74px</output><input id="pointerSize" type="range" min="44" max="130" value="74" /></label>
@@ -190,7 +191,7 @@
               <button class="danger-outline" data-remove-asset="pointer" type="button">คืนเข็มค่าเริ่มต้น</button>
             </div>
             <div class="panel-section">
-              <h3>รูปในช่องวงล้อ</h3><p>อัปโหลดรูปเดียวสำหรับทุกช่อง หรือระบุหมายเลขเพื่อจับคู่</p>
+              <h3>รูปในช่องวงล้อ</h3><p>แนะนำภาพสี่เหลี่ยม 512×512 px สำหรับรูปเดียวทุกช่องหรือรูปจับคู่หมายเลข</p>
               <label class="upload-drop">＋ รูปสำหรับทุกช่อง<input id="segmentImageUpload" type="file" accept="image/png,image/jpeg,image/webp" /></label>
               <div class="mapping-row"><input id="mappingNumber" placeholder="หมายเลข เช่น 001" /><label class="file-button">เลือกรูป<input id="mappingImageUpload" type="file" accept="image/png,image/jpeg,image/webp" /></label></div>
               <div id="mappingList" class="mapping-list"></div>
@@ -203,6 +204,7 @@
               <h3>แถบด้านบน</h3>
               <label class="toggle"><input id="topbarVisible" type="checkbox" checked /><span></span><b>แสดงแถบด้านบน</b></label>
               <label class="upload-drop">＋ เลือกโลโก้แถบด้านบน<input id="topbarLogoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
+              <p class="field-note">Artwork แนะนำ 512×512 px พื้นโปร่งใส และเว้น Safe Area รอบโลโก้ 10%</p>
               <div class="button-grid">
                 <button class="danger-outline" data-remove-asset="topbarLogo" type="button">คืนตรา 26 เริ่มต้น</button>
               </div>
@@ -223,7 +225,8 @@
             <div class="panel-section toggles">
               <h3>องค์ประกอบบนเวที</h3>
               <label class="toggle"><input id="scoreboardVisible" type="checkbox" checked /><span></span><b>แสดงแถบข้อมูลด้านขวา</b></label>
-              <p class="field-note">ปิดตัวเลือกนี้เมื่อต้องการให้วงล้ออยู่กึ่งกลางและเด่นที่สุด</p>
+              <label class="toggle"><input id="nextDrawVisible" type="checkbox" checked /><span></span><b>แสดง “รอบถัดไป”</b></label>
+              <p class="field-note">ปิดแถบข้อมูลเมื่อต้องการให้วงล้ออยู่กึ่งกลาง โดยโหมดเวทีจะซ่อน “รอบถัดไป” เสมอ</p>
             </div>
             <div class="panel-section">
               <h3>ชุดสี</h3>

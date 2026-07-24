@@ -55,7 +55,7 @@ function defaultNumbers() {
 
 function defaultState() {
   return {
-    version: 3,
+    version: 4,
     projectId: uid("project"),
     sessionId: uid("session"),
     campaignTitle: "แคมเปญทายผลแชมป์ฟุตบอลโลก 2026",
@@ -80,6 +80,7 @@ function defaultState() {
       topbarLogoSize: 58,
       stageHeadingVisible: true,
       scoreboardVisible: true,
+      nextDrawVisible: true,
       spinDuration: 7,
       resultDelay: 1.5,
       minRotations: 6,
@@ -98,6 +99,7 @@ function defaultState() {
       overlayDarkness: 55,
       backgroundBlur: 0,
       logoSize: 34,
+      logoBackgroundTransparent: false,
       pointerSize: 74,
       pointerOffset: -8,
     },
@@ -133,9 +135,20 @@ let resultDelayTimer = 0;
 const canvas = $("#wheelCanvas");
 const context = canvas.getContext("2d", { alpha: false });
 const wheelFrame = $("#wheelFrame");
-const pointerWrap = $("#pointerWrap");
 const modal = $("#winnerModal");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+function syncSpinClasses() {
+  document.body.classList.toggle("spinning", spinning);
+  document.body.classList.toggle(
+    "motion-blur",
+    spinning && state.settings.motionBlur && !state.settings.performanceMode,
+  );
+  document.body.classList.toggle(
+    "pointer-shake-active",
+    spinning && state.settings.pointerShakeEnabled && state.settings.pointerStrength > 0,
+  );
+}
 
 function activeNumbers() {
   return state.numbers.filter((item) => !item.removed);
@@ -238,6 +251,7 @@ function applyVisualSettings() {
   $("#app").classList.toggle("topbar-hidden", !state.settings.topbarVisible);
   $("#app").classList.toggle("stage-copy-hidden", !state.settings.stageHeadingVisible);
   $("#app").classList.toggle("scoreboard-hidden", !state.settings.scoreboardVisible);
+  $("#app").classList.toggle("next-draw-hidden", !state.settings.nextDrawVisible);
   $("#topbarReveal").hidden = state.settings.topbarVisible;
   $("#hideTopbarButton").setAttribute("aria-pressed", String(!state.settings.topbarVisible));
   $("#app").classList.toggle("performance-mode", state.settings.performanceMode);
@@ -259,6 +273,7 @@ function applyVisualSettings() {
   if (state.assets.topbarLogo) topbarLogo.src = state.assets.topbarLogo;
 
   const logo = $("#centerLogo");
+  $("#wheelHub").classList.toggle("transparent-background", state.settings.logoBackgroundTransparent);
   logo.hidden = !state.assets.logo;
   $("#hubPlaceholder").hidden = Boolean(state.assets.logo);
   if (state.assets.logo) logo.src = state.assets.logo;
@@ -267,12 +282,7 @@ function applyVisualSettings() {
   pointer.hidden = !state.assets.pointer;
   $("#pointerDefault").hidden = Boolean(state.assets.pointer);
   if (state.assets.pointer) pointer.src = state.assets.pointer;
-  if (!state.settings.pointerShakeEnabled) pointerWrap.classList.remove("shake");
-
-  document.body.classList.toggle(
-    "spinning",
-    spinning && state.settings.motionBlur && !state.settings.performanceMode,
-  );
+  syncSpinClasses();
   $("#soundToggle").textContent = state.settings.soundEnabled ? "♪" : "⊘";
 }
 
@@ -290,6 +300,7 @@ function applyStateToControls() {
     stageDescriptionInput: state.stageDescription,
     stageHeadingVisible: state.settings.stageHeadingVisible,
     scoreboardVisible: state.settings.scoreboardVisible,
+    nextDrawVisible: state.settings.nextDrawVisible,
     primaryColor: state.settings.primary,
     secondaryColor: state.settings.secondary,
     borderColor: state.settings.border,
@@ -318,6 +329,7 @@ function applyStateToControls() {
     overlayDarkness: state.settings.overlayDarkness,
     backgroundBlur: state.settings.backgroundBlur,
     logoSize: state.settings.logoSize,
+    logoBackgroundTransparent: state.settings.logoBackgroundTransparent,
     pointerSize: state.settings.pointerSize,
     pointerOffset: state.settings.pointerOffset,
   };
@@ -534,17 +546,20 @@ function startDraw() {
   closePanel();
   spinning = true;
   $("#spinButton").disabled = true;
-  document.body.classList.add("spinning");
+  syncSpinClasses();
   playStartSound();
   updateDashboard();
 
-  const duration = reduceMotion.matches ? 450 : state.settings.spinDuration * 1000;
+  const duration = Math.max(1, Number(state.settings.spinDuration) || 7) * 1000;
   const start = performance.now();
+  document.body.dataset.spinDurationMs = String(duration);
   const from = wheelRotation;
   const to = targetRotation(from, winnerIndex, pool.length, state.settings.minRotations);
   let previousSegment = -1;
+  let animationFrames = 0;
 
   function animate(time) {
+    animationFrames += 1;
     const progress = Math.min(1, (time - start) / duration);
     const eased = spinEaseOut(progress);
     wheelRotation = from + (to - from) * eased;
@@ -559,7 +574,9 @@ function startDraw() {
       wheelRotation = to;
       spinning = false;
       holdingResult = true;
-      document.body.classList.remove("spinning");
+      document.body.dataset.lastSpinElapsedMs = String(Math.round(time - start));
+      document.body.dataset.lastSpinFrameCount = String(animationFrames);
+      syncSpinClasses();
       updateDashboard();
       const stoppedIndex = winnerIndexAtPointer(wheelRotation, pool.length);
       if (stoppedIndex !== winnerIndex) {
@@ -583,11 +600,6 @@ function startDraw() {
 }
 
 function tickPointer() {
-  if (state.settings.pointerShakeEnabled) {
-    pointerWrap.classList.remove("shake");
-    void pointerWrap.offsetWidth;
-    pointerWrap.classList.add("shake");
-  }
   playTickSound();
 }
 
@@ -1152,6 +1164,7 @@ function bindControls() {
     topbarLogoSize: ["topbarLogoSize", "number"],
     stageHeadingVisible: ["stageHeadingVisible", "checked"],
     scoreboardVisible: ["scoreboardVisible", "checked"],
+    nextDrawVisible: ["nextDrawVisible", "checked"],
     primaryColor: ["primary", "color"],
     secondaryColor: ["secondary", "color"],
     borderColor: ["border", "color"],
@@ -1180,6 +1193,7 @@ function bindControls() {
     overlayDarkness: ["overlayDarkness", "number"],
     backgroundBlur: ["backgroundBlur", "number"],
     logoSize: ["logoSize", "number"],
+    logoBackgroundTransparent: ["logoBackgroundTransparent", "checked"],
     pointerSize: ["pointerSize", "number"],
     pointerOffset: ["pointerOffset", "number"],
   };
@@ -1206,8 +1220,10 @@ function bindControls() {
             "topbarLogoSize",
             "stageHeadingVisible",
             "scoreboardVisible",
+            "nextDrawVisible",
             "resultDelay",
             "pointerShakeEnabled",
+            "logoBackgroundTransparent",
           ].includes(key),
         },
       );
