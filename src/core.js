@@ -128,7 +128,7 @@ export function winnerIndexAtPointer(rotation, segmentCount) {
 
 export function spinEaseOut(progress) {
   const clamped = Math.max(0, Math.min(1, Number(progress) || 0));
-  return 1 - (1 - clamped) ** 5;
+  return 1 - (1 - clamped) ** 3;
 }
 
 export function csvEscape(value) {

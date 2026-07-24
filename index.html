@@ -39,15 +39,15 @@
           <button class="primary-small" id="panelToggle" type="button">ตั้งค่าระบบ <span>☰</span></button>
         </div>
       </header>
-      <button class="topbar-reveal" id="topbarReveal" type="button" aria-label="แสดงแถบด้านบน" hidden>แสดงแถบด้านบน ↓</button>
+      <button class="topbar-reveal" id="topbarReveal" type="button" aria-label="แสดงแถบด้านบน" title="แสดงแถบด้านบน" hidden><span aria-hidden="true"></span></button>
 
       <main class="stage-shell">
         <section class="stage" aria-label="เวทีสุ่มหมายเลข">
           <div class="stage-heading">
-            <div>
-              <p class="section-kicker">LUCKY DRAW • LIVE EVENT</p>
-              <h2>หมุนวงล้อแห่งโชค</h2>
-              <p>ทุกหมายเลขมีโอกาสเท่ากัน — เลือกผลด้วยการสุ่มแบบเข้ารหัสก่อนเริ่มหมุน</p>
+            <div class="stage-copy" id="stageCopy">
+              <p class="section-kicker" id="stageKicker">LUCKY DRAW • LIVE EVENT</p>
+              <h2 id="stageTitle">หมุนวงล้อแห่งโชค</h2>
+              <p id="stageDescription">ทุกหมายเลขมีโอกาสเท่ากัน — เลือกผลด้วยการสุ่มแบบเข้ารหัสก่อนเริ่มหมุน</p>
             </div>
             <div class="draw-chip">
               <span>รอบถัดไป</span>
@@ -73,7 +73,6 @@
                 <span class="spin-icon">▶</span>
                 <span><strong>เริ่มสุ่ม</strong><small>กด Space เพื่อเริ่ม</small></span>
               </button>
-              <p class="fair-note"><span>◆</span> RANDOMIZED WITH WEB CRYPTO API</p>
             </div>
 
             <aside class="scoreboard" aria-label="ข้อมูลการสุ่ม">
@@ -212,7 +211,19 @@
               <label>ข้อความผู้ร่วมจัด<input id="campaignSubtitleInput" type="text" /></label>
               <label>ข้อความสถานะ<input id="topbarStatusInput" type="text" maxlength="40" /></label>
               <label>ขนาดโลโก้ <output id="topbarLogoSizeValue">58px</output><input id="topbarLogoSize" type="range" min="36" max="80" value="58" /></label>
-              <p class="field-note">เมื่อซ่อนแถบ จะมีปุ่มเล็กด้านขวาบนสำหรับเรียกกลับมา หรือเปิดจากการตั้งค่านี้ได้</p>
+              <p class="field-note">เมื่อซ่อนแถบ จะมีปุ่มเมนูสามขีดขนาดเล็กด้านขวาบนสำหรับเรียกกลับมา</p>
+            </div>
+            <div class="panel-section">
+              <h3>ข้อความมุมบนซ้าย</h3>
+              <label class="toggle"><input id="stageHeadingVisible" type="checkbox" checked /><span></span><b>แสดงข้อความมุมบนซ้าย</b></label>
+              <label>ข้อความบรรทัดบน<input id="stageKickerInput" type="text" maxlength="60" /></label>
+              <label>หัวข้อหลัก<input id="stageTitleInput" type="text" maxlength="100" /></label>
+              <label>ข้อความอธิบาย<textarea id="stageDescriptionInput" rows="3" maxlength="240"></textarea></label>
+            </div>
+            <div class="panel-section toggles">
+              <h3>องค์ประกอบบนเวที</h3>
+              <label class="toggle"><input id="scoreboardVisible" type="checkbox" checked /><span></span><b>แสดงแถบข้อมูลด้านขวา</b></label>
+              <p class="field-note">ปิดตัวเลือกนี้เมื่อต้องการให้วงล้ออยู่กึ่งกลางและเด่นที่สุด</p>
             </div>
             <div class="panel-section">
               <h3>ชุดสี</h3>
@@ -235,7 +246,7 @@
               <div class="form-grid two">
                 <label>ฟอนต์<select id="fontFamily"><option value="system-ui">System UI</option><option value="Arial">Arial</option><option value="Tahoma">Tahoma</option><option value="Georgia">Georgia</option></select></label>
                 <label>น้ำหนัก<select id="fontWeight"><option value="600">Semi Bold</option><option value="700">Bold</option><option value="800">Extra Bold</option></select></label>
-                <label>ขนาด <output id="fontSizeValue">16px</output><input id="fontSize" type="range" min="8" max="32" value="16" /></label>
+                <label>ขนาดตัวเลข <output id="fontSizeValue">16px</output><input id="fontSize" type="range" min="8" max="48" value="16" /></label>
                 <label>ทิศทาง<select id="textDirection"><option value="radial">แนวรัศมี</option><option value="tangent">แนวสัมผัส</option></select></label>
               </div>
               <label class="toggle"><input id="showLabels" type="checkbox" checked /><span></span> แสดงหมายเลขบนวงล้อ</label>
@@ -252,6 +263,7 @@
             </div>
             <div class="panel-section toggles">
               <label class="toggle"><input id="removeConfirmed" type="checkbox" checked /><span></span><b>นำหมายเลขที่ยืนยันแล้วออกจากวงล้อ</b></label>
+              <label class="toggle"><input id="pointerShakeEnabled" type="checkbox" checked /><span></span><b>เข็มสั่นตามช่องระหว่างหมุน</b></label>
               <label class="toggle"><input id="motionBlur" type="checkbox" checked /><span></span> Motion Blur จำลอง</label>
               <label class="toggle"><input id="escapeCloses" type="checkbox" /><span></span> อนุญาต Escape ให้ปิด Popup</label>
             </div>

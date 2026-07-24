@@ -55,13 +55,16 @@ function defaultNumbers() {
 
 function defaultState() {
   return {
-    version: 2,
+    version: 3,
     projectId: uid("project"),
     sessionId: uid("session"),
     campaignTitle: "แคมเปญทายผลแชมป์ฟุตบอลโลก 2026",
     campaignSubtitle: "ร่วมกับไทยรัฐกรุ๊ป",
     topbarEyebrow: "OFFICIAL DRAW CONSOLE",
     topbarStatus: "พร้อมสุ่ม",
+    stageKicker: "LUCKY DRAW • LIVE EVENT",
+    stageTitle: "หมุนวงล้อแห่งโชค",
+    stageDescription: "ทุกหมายเลขมีโอกาสเท่ากัน — เลือกผลด้วยการสุ่มแบบเข้ารหัสก่อนเริ่มหมุน",
     numbers: defaultNumbers(),
     history: [],
     settings: {
@@ -75,10 +78,13 @@ function defaultState() {
       showLabels: true,
       topbarVisible: true,
       topbarLogoSize: 58,
+      stageHeadingVisible: true,
+      scoreboardVisible: true,
       spinDuration: 7,
       resultDelay: 1.5,
       minRotations: 6,
       pointerStrength: 70,
+      pointerShakeEnabled: true,
       removeConfirmed: true,
       motionBlur: true,
       escapeCloses: false,
@@ -226,7 +232,12 @@ function applyVisualSettings() {
   $("#campaignTitle").textContent = state.campaignTitle;
   $("#campaignSubtitle").textContent = state.campaignSubtitle;
   $("#topbarEyebrow").textContent = state.topbarEyebrow;
+  $("#stageKicker").textContent = state.stageKicker;
+  $("#stageTitle").textContent = state.stageTitle;
+  $("#stageDescription").textContent = state.stageDescription;
   $("#app").classList.toggle("topbar-hidden", !state.settings.topbarVisible);
+  $("#app").classList.toggle("stage-copy-hidden", !state.settings.stageHeadingVisible);
+  $("#app").classList.toggle("scoreboard-hidden", !state.settings.scoreboardVisible);
   $("#topbarReveal").hidden = state.settings.topbarVisible;
   $("#hideTopbarButton").setAttribute("aria-pressed", String(!state.settings.topbarVisible));
   $("#app").classList.toggle("performance-mode", state.settings.performanceMode);
@@ -256,6 +267,7 @@ function applyVisualSettings() {
   pointer.hidden = !state.assets.pointer;
   $("#pointerDefault").hidden = Boolean(state.assets.pointer);
   if (state.assets.pointer) pointer.src = state.assets.pointer;
+  if (!state.settings.pointerShakeEnabled) pointerWrap.classList.remove("shake");
 
   document.body.classList.toggle(
     "spinning",
@@ -273,6 +285,11 @@ function applyStateToControls() {
     topbarStatusInput: state.topbarStatus,
     topbarVisible: state.settings.topbarVisible,
     topbarLogoSize: state.settings.topbarLogoSize,
+    stageKickerInput: state.stageKicker,
+    stageTitleInput: state.stageTitle,
+    stageDescriptionInput: state.stageDescription,
+    stageHeadingVisible: state.settings.stageHeadingVisible,
+    scoreboardVisible: state.settings.scoreboardVisible,
     primaryColor: state.settings.primary,
     secondaryColor: state.settings.secondary,
     borderColor: state.settings.border,
@@ -287,6 +304,7 @@ function applyStateToControls() {
     resultDelay: state.settings.resultDelay,
     minRotations: state.settings.minRotations,
     pointerStrength: state.settings.pointerStrength,
+    pointerShakeEnabled: state.settings.pointerShakeEnabled,
     removeConfirmed: state.settings.removeConfirmed,
     motionBlur: state.settings.motionBlur,
     escapeCloses: state.settings.escapeCloses,
@@ -565,9 +583,11 @@ function startDraw() {
 }
 
 function tickPointer() {
-  pointerWrap.classList.remove("shake");
-  void pointerWrap.offsetWidth;
-  pointerWrap.classList.add("shake");
+  if (state.settings.pointerShakeEnabled) {
+    pointerWrap.classList.remove("shake");
+    void pointerWrap.offsetWidth;
+    pointerWrap.classList.add("shake");
+  }
   playTickSound();
 }
 
@@ -744,18 +764,46 @@ function renderNumberList() {
   const pages = Math.max(1, Math.ceil(filtered.length / perPage));
   currentPage = Math.min(currentPage, pages);
   const items = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
-  $("#numberList").innerHTML = items.length
-    ? items
-        .map(
-          (item) => `<div class="number-row ${item.removed ? "removed" : ""}">
-            <input type="checkbox" data-number-select="${item.id}" aria-label="select ${escapeHTML(item.label)}" />
-            <strong>${escapeHTML(item.label)}</strong>
-            <span class="state-badge">${item.removed ? "นำออกแล้ว" : "ใช้งาน"}</span>
-            <button class="row-action" data-number-action="${item.removed ? "restore" : "delete"}" data-number-id="${item.id}" type="button" aria-label="${item.removed ? "คืน" : "ลบ"} ${spinning ? "disabled" : ""}>${item.removed ? "↺" : "×"}</button>
-          </div>`,
-        )
-        .join("")
-    : '<p class="empty-note">ไม่พบรายการ</p>';
+  const list = $("#numberList");
+  list.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-note";
+    empty.textContent = "ไม่พบรายการ";
+    list.append(empty);
+  } else {
+    const fragment = document.createDocumentFragment();
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = `number-row${item.removed ? " removed" : ""}`;
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.numberSelect = item.id;
+      checkbox.setAttribute("aria-label", `เลือกหมายเลข ${item.label}`);
+
+      const value = document.createElement("strong");
+      value.className = "number-value";
+      value.textContent = item.label;
+
+      const badge = document.createElement("span");
+      badge.className = "state-badge";
+      badge.textContent = item.removed ? "นำออกแล้ว" : "ใช้งาน";
+
+      const action = document.createElement("button");
+      action.className = "row-action";
+      action.dataset.numberAction = item.removed ? "restore" : "delete";
+      action.dataset.numberId = item.id;
+      action.type = "button";
+      action.disabled = spinning || holdingResult;
+      action.setAttribute("aria-label", `${item.removed ? "คืน" : "ลบ"}หมายเลข ${item.label}`);
+      action.textContent = item.removed ? "↺" : "×";
+
+      row.append(checkbox, value, badge, action);
+      fragment.append(row);
+    }
+    list.append(fragment);
+  }
   $("#listSummary").textContent = `${state.numbers.length.toLocaleString("th-TH")} รายการ • คงเหลือ ${activeNumbers().length.toLocaleString("th-TH")}`;
   $("#pageInfo").textContent = `หน้า ${currentPage} / ${pages}`;
   $("#prevPage").disabled = currentPage <= 1;
@@ -1026,7 +1074,7 @@ function bindControls() {
   });
   $("#numberList").addEventListener("click", (event) => {
     const button = event.target.closest("[data-number-action]");
-    if (!button || spinning) return;
+    if (!button || spinning || holdingResult) return;
     updateState((draft) => {
       const item = draft.numbers.find((number) => number.id === button.dataset.numberId);
       if (!item) return;
@@ -1035,7 +1083,7 @@ function bindControls() {
     });
   });
   $("#deleteSelected").addEventListener("click", () => {
-    if (spinning) return;
+    if (spinning || holdingResult) return;
     const selected = new Set($$("[data-number-select]:checked").map((input) => input.dataset.numberSelect));
     if (!selected.size) return showToast("ยังไม่ได้เลือกรายการ", "error");
     if (!confirm(`ลบ ${selected.size} รายการหรือไม่?`)) return;
@@ -1097,8 +1145,13 @@ function bindControls() {
     campaignSubtitleInput: ["campaignSubtitle", "text"],
     topbarEyebrowInput: ["topbarEyebrow", "text"],
     topbarStatusInput: ["topbarStatus", "text"],
+    stageKickerInput: ["stageKicker", "text"],
+    stageTitleInput: ["stageTitle", "text"],
+    stageDescriptionInput: ["stageDescription", "text"],
     topbarVisible: ["topbarVisible", "checked"],
     topbarLogoSize: ["topbarLogoSize", "number"],
+    stageHeadingVisible: ["stageHeadingVisible", "checked"],
+    scoreboardVisible: ["scoreboardVisible", "checked"],
     primaryColor: ["primary", "color"],
     secondaryColor: ["secondary", "color"],
     borderColor: ["border", "color"],
@@ -1113,6 +1166,7 @@ function bindControls() {
     resultDelay: ["resultDelay", "number"],
     minRotations: ["minRotations", "number"],
     pointerStrength: ["pointerStrength", "number"],
+    pointerShakeEnabled: ["pointerShakeEnabled", "checked"],
     removeConfirmed: ["removeConfirmed", "checked"],
     motionBlur: ["motionBlur", "checked"],
     escapeCloses: ["escapeCloses", "checked"],
@@ -1150,12 +1204,17 @@ function bindControls() {
             "escapeCloses",
             "topbarVisible",
             "topbarLogoSize",
+            "stageHeadingVisible",
+            "scoreboardVisible",
             "resultDelay",
+            "pointerShakeEnabled",
           ].includes(key),
         },
       );
       updateOutputs();
-      if (["logoSize", "pointerSize", "pointerOffset"].includes(key)) resizeCanvas();
+      if (["logoSize", "pointerSize", "pointerOffset", "scoreboardVisible", "stageHeadingVisible"].includes(key)) {
+        setTimeout(resizeCanvas, 40);
+      }
     }
   }
 
