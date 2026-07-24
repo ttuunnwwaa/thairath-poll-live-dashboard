@@ -18,6 +18,7 @@
   </head>
   <body>
     <div id="app">
+      <div class="event-background" id="eventBackground" aria-hidden="true" hidden></div>
       <div class="ambient ambient-a"></div>
       <div class="ambient ambient-b"></div>
       <header class="topbar">
@@ -314,11 +315,11 @@
       </aside>
       <div class="panel-backdrop" id="panelBackdrop"></div>
 
-      <div class="winner-modal" id="winnerModal" role="dialog" aria-modal="true" aria-labelledby="winnerHeading" hidden>
+      <div class="winner-modal" id="winnerModal" role="dialog" aria-modal="true" aria-labelledby="winnerHeading" aria-describedby="winnerNote" tabindex="-1" hidden>
         <canvas id="confettiCanvas"></canvas>
         <div class="winner-card">
           <div class="winner-ribbon">OFFICIAL RESULT</div>
-          <p id="winnerHeading">หมายเลขที่สุ่มได้</p>
+          <h2 id="winnerHeading">หมายเลขที่สุ่มได้</h2>
           <strong id="winnerNumber">000</strong>
           <div class="winner-meta"><span id="winnerSequence">ลำดับที่ 1</span><i></i><span id="winnerDate">—</span></div>
           <div class="winner-actions">

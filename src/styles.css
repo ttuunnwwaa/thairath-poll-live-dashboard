@@ -70,6 +70,15 @@ label.file-button {
     linear-gradient(135deg, #05131f 0%, #071d28 48%, #071922 100%);
 }
 
+.event-background {
+  position: fixed;
+  z-index: -3;
+  inset: -24px;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  transform: scale(1.025);
+}
+
 #app::before,
 #app::after {
   content: "";
@@ -125,6 +134,7 @@ label.file-button {
   justify-content: space-between;
   border-bottom: 1px solid rgba(214, 190, 113, 0.16);
   background: rgba(3, 14, 22, 0.72);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
   position: relative;
   z-index: 20;
@@ -253,6 +263,11 @@ label.file-button {
   color: #0c1820;
   font-size: 12px;
   font-weight: 900;
+}
+
+.primary-small:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .primary-small span {
@@ -551,6 +566,7 @@ label.file-button {
   border: 1px solid rgba(255, 255, 255, 0.085);
   border-radius: 18px;
   background: linear-gradient(145deg, rgba(17, 49, 59, 0.72), rgba(5, 23, 34, 0.72));
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
 }
@@ -708,6 +724,7 @@ label.file-button {
   box-shadow: -22px 0 70px rgba(0, 0, 0, 0.5);
   transform: translateX(104%);
   transition: transform 260ms cubic-bezier(0.22, 0.8, 0.3, 1);
+  -webkit-backdrop-filter: blur(26px);
   backdrop-filter: blur(26px);
 }
 
@@ -1314,6 +1331,7 @@ kbd {
   place-items: center;
   padding: 24px;
   background: rgba(1, 7, 12, 0.92);
+  -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
 
@@ -1360,10 +1378,11 @@ kbd {
   letter-spacing: 0.2em;
 }
 
-.winner-card > p {
+.winner-card > h2 {
   margin: 20px 0 0;
   color: #bdd0d2;
   font-size: clamp(18px, 2.2vw, 30px);
+  font-weight: 700;
 }
 
 #winnerNumber {
@@ -1547,6 +1566,53 @@ kbd {
 
   .live-pill {
     display: none;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 801px) {
+  .topbar {
+    height: 78px;
+  }
+
+  .stage-shell {
+    padding-top: 18px;
+    padding-bottom: 16px;
+  }
+
+  .stage-heading {
+    margin-bottom: 10px;
+  }
+
+  .stage-heading h2 {
+    font-size: clamp(28px, 2.5vw, 40px);
+  }
+
+  .stage-heading p:last-child {
+    margin-top: 6px;
+  }
+
+  .wheel-frame {
+    min-width: 330px;
+    min-height: 330px;
+    max-width: calc(100vh - 360px);
+    max-height: calc(100vh - 360px);
+  }
+
+  .spin-button {
+    margin-top: 16px;
+    padding-block: 10px;
+  }
+
+  .fair-note {
+    margin-top: 7px;
+  }
+
+  .score-card {
+    padding: 14px;
+  }
+
+  .hero-score {
+    min-height: 120px;
   }
 }
 

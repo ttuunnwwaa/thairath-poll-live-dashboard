@@ -2,14 +2,18 @@ import "./styles.css";
 import {
   TAU,
   contrastRatio,
+  detectDelimiter,
   dedupeEntries,
   formatCSV,
   generateRange,
-  normalizeAngle,
+  isSafeSvg,
+  parseDelimitedText,
   parseEntries,
   secureRandomIndex,
   targetRotation,
   uid,
+  validateProjectPayload,
+  winnerIndexAtPointer,
 } from "./core.js";
 import { clearProject, loadProject, saveProject } from "./storage.js";
 
@@ -108,6 +112,8 @@ let segmentImage = null;
 let mappedImages = new Map();
 let confettiFrame = 0;
 let resizeQueued = false;
+let focusBeforeModal = null;
+let wheelResizeObserver = null;
 
 const canvas = $("#wheelCanvas");
 const context = canvas.getContext("2d", { alpha: false });
@@ -177,6 +183,7 @@ function updateDashboard() {
   $("#latestTime").textContent = latest ? formatThaiDate(latest.timestamp) : "ยังไม่มีผลการสุ่ม";
   $(".live-pill").innerHTML = `<span></span> ${spinning ? "กำลังสุ่ม" : active ? "พร้อมสุ่ม" : "ไม่มีหมายเลข"}`;
   $("#spinButton").disabled = spinning || active === 0;
+  $("#panelToggle").disabled = spinning;
 
   const recent = state.history.slice(-3).reverse();
   $("#recentHistory").innerHTML = recent.length
@@ -202,16 +209,17 @@ function applyVisualSettings() {
   $("#campaignTitle").textContent = state.campaignTitle;
   $("#campaignSubtitle").textContent = state.campaignSubtitle;
   $("#app").classList.toggle("performance-mode", state.settings.performanceMode);
-  $("#app").style.backgroundImage = state.assets.background
+  const backgroundLayer = $("#eventBackground");
+  backgroundLayer.style.backgroundImage = state.assets.background
     ? `linear-gradient(rgba(2,10,17,${state.settings.overlayDarkness / 100}),rgba(2,10,17,${state.settings.overlayDarkness / 100})),url("${state.assets.background}")`
     : "";
-  $("#app").style.backgroundSize = state.assets.background ? state.settings.backgroundFit : "";
-  $("#app").style.backgroundPosition = state.assets.background ? state.settings.backgroundPosition : "";
-  $("#app").style.backgroundRepeat = "no-repeat";
-  $("#app").style.filter =
+  backgroundLayer.style.backgroundSize = state.assets.background ? state.settings.backgroundFit : "";
+  backgroundLayer.style.backgroundPosition = state.assets.background ? state.settings.backgroundPosition : "";
+  backgroundLayer.style.filter =
     state.assets.background && state.settings.backgroundBlur && !state.settings.performanceMode
-      ? `none`
-      : "";
+      ? `blur(${state.settings.backgroundBlur}px)`
+      : "none";
+  backgroundLayer.hidden = !state.assets.background;
 
   const logo = $("#centerLogo");
   logo.hidden = !state.assets.logo;
@@ -342,6 +350,9 @@ function drawWheel() {
   context.translate(radius, radius);
 
   if (!active.length) {
+    delete canvas.dataset.pointerIndex;
+    delete canvas.dataset.pointerNumber;
+    canvas.setAttribute("aria-label", "วงล้อไม่มีหมายเลข");
     const gradient = context.createRadialGradient(0, 0, radius * 0.1, 0, 0, radius);
     gradient.addColorStop(0, "#153b46");
     gradient.addColorStop(1, "#071b27");
@@ -357,6 +368,13 @@ function drawWheel() {
     return;
   }
 
+  const pointerIndex = winnerIndexAtPointer(wheelRotation, active.length);
+  canvas.dataset.pointerIndex = String(pointerIndex);
+  canvas.dataset.pointerNumber = active[pointerIndex].label;
+  canvas.setAttribute(
+    "aria-label",
+    `วงล้อ ${active.length.toLocaleString("th-TH")} ช่อง เข็มชี้ที่หมายเลข ${active[pointerIndex].label}`,
+  );
   context.rotate(wheelRotation);
   const primary = state.settings.primary;
   const secondary = state.settings.secondary;
@@ -461,6 +479,7 @@ function startDraw() {
     sequence: state.history.length + 1,
   };
 
+  closePanel();
   spinning = true;
   $("#spinButton").disabled = true;
   document.body.classList.add("spinning");
@@ -478,7 +497,7 @@ function startDraw() {
     const eased = 1 - (1 - progress) ** 4;
     wheelRotation = from + (to - from) * eased;
     drawWheel();
-    const segment = Math.floor(normalizeAngle(-wheelRotation) / (TAU / pool.length));
+    const segment = winnerIndexAtPointer(wheelRotation, pool.length);
     if (segment !== previousSegment) {
       previousSegment = segment;
       tickPointer();
@@ -489,6 +508,12 @@ function startDraw() {
       spinning = false;
       document.body.classList.remove("spinning");
       updateDashboard();
+      const stoppedIndex = winnerIndexAtPointer(wheelRotation, pool.length);
+      if (stoppedIndex !== winnerIndex) {
+        pendingWinner = null;
+        showToast("ตรวจพบตำแหน่งวงล้อคลาดเคลื่อน ระบบยกเลิกผลเพื่อความปลอดภัย", "error");
+        return;
+      }
       playWinnerSound();
       openWinnerModal();
     }
@@ -556,6 +581,8 @@ function openWinnerModal() {
   $("#winnerNote").textContent = state.settings.removeConfirmed
     ? "หมายเลขจะถูกนำออกจากวงล้อเมื่อกดยืนยัน"
     : "หมายเลขจะยังคงอยู่ในวงล้อและสามารถออกซ้ำได้";
+  focusBeforeModal = document.activeElement;
+  setModalBackgroundInert(true);
   modal.hidden = false;
   document.body.style.overflow = "hidden";
   $("#confirmWinner").focus();
@@ -564,11 +591,24 @@ function openWinnerModal() {
 
 function closeWinnerModal({ discard = true } = {}) {
   modal.hidden = true;
+  setModalBackgroundInert(false);
   document.body.style.overflow = "";
   cancelAnimationFrame(confettiFrame);
   clearConfetti();
   if (discard) pendingWinner = null;
-  $("#spinButton").focus();
+  const focusTarget = focusBeforeModal?.isConnected ? focusBeforeModal : $("#spinButton");
+  focusBeforeModal = null;
+  focusTarget.focus();
+}
+
+function setModalBackgroundInert(inert) {
+  for (const element of [$(".topbar"), $(".stage-shell"), $("#controlPanel"), $("#panelBackdrop")]) {
+    element.inert = inert;
+    if (inert) element.setAttribute("aria-hidden", "true");
+    else if (element === $("#controlPanel")) {
+      element.setAttribute("aria-hidden", element.classList.contains("open") ? "false" : "true");
+    } else element.removeAttribute("aria-hidden");
+  }
 }
 
 function confirmWinner() {
@@ -717,7 +757,10 @@ function download(filename, content, type = "text/plain;charset=utf-8") {
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+  link.hidden = true;
+  document.body.append(link);
   link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -750,12 +793,21 @@ function exportHistory() {
 async function readFileAsDataURL(file, { audio = false } = {}) {
   const limit = audio ? 12 * 1024 * 1024 : 8 * 1024 * 1024;
   if (file.size > limit) throw new Error(`ไฟล์มีขนาดเกิน ${audio ? 12 : 8} MB`);
-  if (!audio && !["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.type)) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const inferredType = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+  }[extension];
+  const fileType = file.type || inferredType || "";
+  if (!audio && !["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(fileType)) {
     throw new Error("รองรับเฉพาะ PNG, JPEG, WebP และ SVG");
   }
-  if (file.type === "image/svg+xml") {
+  if (fileType === "image/svg+xml") {
     const text = await file.text();
-    if (/<script|foreignObject|on\w+\s*=|javascript:/i.test(text)) {
+    if (!isSafeSvg(text)) {
       throw new Error("ไฟล์ SVG มีเนื้อหาที่ไม่ปลอดภัย");
     }
   }
@@ -810,6 +862,36 @@ function setStageMode(enabled) {
   showToast(enabled ? "เปิดโหมดเวทีแล้ว • กด S เพื่อออก" : "ออกจากโหมดเวทีแล้ว");
 }
 
+async function toggleFullscreen() {
+  const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fullscreenElement) {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!exit) throw new Error("Fullscreen exit is unavailable");
+    await exit.call(document);
+    return;
+  }
+  const request = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+  if (!request) throw new Error("Fullscreen is unavailable");
+  await request.call(document.documentElement);
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+  const copied = document.execCommand?.("copy");
+  textarea.remove();
+  if (!copied) throw new Error("Copy is unavailable");
+}
+
 function bindControls() {
   $("#spinButton").addEventListener("click", startDraw);
   $("#panelToggle").addEventListener("click", () => openPanel());
@@ -823,8 +905,7 @@ function bindControls() {
 
   $("#fullscreenButton").addEventListener("click", async () => {
     try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
+      await toggleFullscreen();
     } catch {
       showToast("Browser นี้ไม่อนุญาต Fullscreen", "error");
     }
@@ -934,14 +1015,16 @@ function bindControls() {
   $("#exportRemoved").addEventListener("click", () => exportNumbers("removed"));
 
   $("#numberImport").addEventListener("change", async (event) => {
+    if (spinning) return;
     const file = event.target.files?.[0];
     if (!file) return;
     try {
       const text = (await file.text()).replace(/^\uFEFF/, "");
-      const lines = text.split(/\r?\n/).filter(Boolean);
-      const delimiter = [",", ";", "\t"].sort((a, b) => (lines[0].split(b).length - lines[0].split(a).length))[0];
+      const delimiter = detectDelimiter(text);
+      const rows = parseDelimitedText(text, delimiter);
+      if (!rows.length) throw new Error("ไฟล์ไม่มีข้อมูล");
       let column = 0;
-      const columns = lines[0].split(delimiter);
+      const columns = rows[0];
       if (columns.length > 1) {
         const answer = prompt(
           `พบ ${columns.length} คอลัมน์: ${columns.map((value, index) => `${index + 1}=${value}`).join(", ")}\nกรอกหมายเลขคอลัมน์ที่ต้องการ`,
@@ -951,7 +1034,7 @@ function bindControls() {
         column = Math.max(0, Math.min(columns.length - 1, Number(answer) - 1 || 0));
       }
       const hasHeader = confirm(`แถวแรก "${columns[column]}" เป็น Header และควรข้ามหรือไม่?`);
-      const entries = lines.slice(hasHeader ? 1 : 0).map((line) => line.split(delimiter)[column]?.trim()).filter(Boolean);
+      const entries = rows.slice(hasHeader ? 1 : 0).map((row) => row[column]?.trim()).filter(Boolean);
       const { accepted } = dedupeEntries(entries, state.settings.allowDuplicates);
       if (accepted.length > 1000) throw new Error("ไฟล์มีรายการเกิน 1,000 หมายเลข");
       updateState((draft) => {
@@ -1107,7 +1190,7 @@ function bindControls() {
   $("#closeWinner").addEventListener("click", () => closeWinnerModal());
   $("#copyWinner").addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText(pendingWinner?.number ?? "");
+      await copyText(pendingWinner?.number ?? "");
       showToast("คัดลอกหมายเลขแล้ว");
     } catch {
       showToast("คัดลอกไม่สำเร็จ กรุณาเลือกหมายเลขด้วยตนเอง", "error");
@@ -1123,12 +1206,9 @@ function bindControls() {
     if (!file) return;
     try {
       if (file.size > 30 * 1024 * 1024) throw new Error("ไฟล์โปรเจกต์มีขนาดเกิน 30 MB");
-      const imported = JSON.parse(await file.text());
-      if (imported.format !== "lucky-draw-wheel" || !Array.isArray(imported.numbers)) {
-        throw new Error("รูปแบบไฟล์โปรเจกต์ไม่ถูกต้อง");
-      }
-      if (imported.numbers.length > 1000) throw new Error("โปรเจกต์มีหมายเลขเกิน 1,000 รายการ");
+      const imported = validateProjectPayload(JSON.parse(await file.text()));
       state = mergeState(imported);
+      customWinnerAudio = null;
       applyStateToControls();
       loadSegmentAssets();
       applyVisualSettings();
@@ -1149,6 +1229,7 @@ function bindControls() {
     if (!confirm("ยืนยันอีกครั้ง: การตั้งค่า รูปภาพ และประวัติทั้งหมดจะถูกลบ")) return;
     await clearProject();
     state = defaultState();
+    customWinnerAudio = null;
     applyStateToControls();
     loadSegmentAssets();
     applyVisualSettings();
@@ -1161,6 +1242,28 @@ function bindControls() {
 
   document.addEventListener("keydown", (event) => {
     const editable = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
+    if (!modal.hidden && event.key === "Tab") {
+      const focusable = $$("button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])", modal)
+        .filter((element) => !element.hidden && element.offsetParent !== null);
+      if (!focusable.length) {
+        event.preventDefault();
+        modal.focus();
+      } else {
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        } else if (!modal.contains(document.activeElement)) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+      return;
+    }
     if (event.code === "Space" && !editable) {
       event.preventDefault();
       if (modal.hidden) startDraw();
@@ -1206,9 +1309,22 @@ async function initialize() {
   renderHistory();
   renderMappings();
   bindControls();
-  new ResizeObserver(resizeCanvas).observe(wheelFrame);
+  wheelResizeObserver = new ResizeObserver(resizeCanvas);
+  wheelResizeObserver.observe(wheelFrame);
   window.addEventListener("resize", resizeCanvas, { passive: true });
+  window.addEventListener(
+    "pagehide",
+    () => {
+      wheelResizeObserver?.disconnect();
+      cancelAnimationFrame(confettiFrame);
+      audioContext?.close().catch(() => {});
+    },
+    { once: true },
+  );
   resizeCanvas();
 }
 
-initialize();
+if (!window.__luckyDrawBooted) {
+  window.__luckyDrawBooted = true;
+  initialize();
+}

@@ -11,6 +11,66 @@ export function parseEntries(input) {
     .filter(Boolean);
 }
 
+export function detectDelimiter(input) {
+  const text = String(input ?? "").replace(/^\uFEFF/, "");
+  const firstRecord = text.split(/\r?\n/, 1)[0] ?? "";
+  const candidates = [",", ";", "\t"];
+  let best = ",";
+  let bestCount = -1;
+  for (const delimiter of candidates) {
+    let count = 0;
+    let quoted = false;
+    for (let index = 0; index < firstRecord.length; index += 1) {
+      const character = firstRecord[index];
+      if (character === '"') {
+        if (quoted && firstRecord[index + 1] === '"') index += 1;
+        else quoted = !quoted;
+      } else if (!quoted && character === delimiter) count += 1;
+    }
+    if (count > bestCount) {
+      best = delimiter;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+export function parseDelimitedText(input, delimiter = detectDelimiter(input)) {
+  const text = String(input ?? "").replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [];
+  let value = "";
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quoted) {
+      if (character === '"' && text[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else if (character === '"') quoted = false;
+      else value += character;
+      continue;
+    }
+
+    if (character === '"') quoted = true;
+    else if (character === delimiter) {
+      row.push(value.trim());
+      value = "";
+    } else if (character === "\n" || character === "\r") {
+      if (character === "\r" && text[index + 1] === "\n") index += 1;
+      row.push(value.trim());
+      if (row.some((cell) => cell !== "")) rows.push(row);
+      row = [];
+      value = "";
+    } else value += character;
+  }
+
+  row.push(value.trim());
+  if (row.some((cell) => cell !== "")) rows.push(row);
+  return rows;
+}
+
 export function dedupeEntries(entries, allowDuplicates = false) {
   if (allowDuplicates) return { accepted: [...entries], duplicates: [] };
   const seen = new Set();
@@ -58,6 +118,14 @@ export function targetRotation(currentRotation, winnerIndex, segmentCount, minim
   return currentRotation + Math.max(1, minimumRotations) * TAU + forward;
 }
 
+export function winnerIndexAtPointer(rotation, segmentCount) {
+  if (!Number.isInteger(segmentCount) || segmentCount <= 0) {
+    throw new Error("จำนวนช่องต้องมากกว่า 0");
+  }
+  const arc = TAU / segmentCount;
+  return Math.floor(normalizeAngle(-rotation) / arc) % segmentCount;
+}
+
 export function csvEscape(value) {
   const text = String(value ?? "");
   return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
@@ -86,4 +154,22 @@ export function uid(prefix = "id") {
   if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
   else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.random() * 256;
   return `${prefix}-${Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("")}`;
+}
+
+export function isSafeSvg(text) {
+  return !/<script|foreignObject|on\w+\s*=|javascript:|data:text\/html/i.test(String(text ?? ""));
+}
+
+export function validateProjectPayload(payload) {
+  if (!payload || typeof payload !== "object") throw new Error("รูปแบบไฟล์โปรเจกต์ไม่ถูกต้อง");
+  if (payload.format !== "lucky-draw-wheel") throw new Error("รูปแบบไฟล์โปรเจกต์ไม่ถูกต้อง");
+  if (!Array.isArray(payload.numbers)) throw new Error("ไฟล์โปรเจกต์ไม่มีรายการหมายเลข");
+  if (payload.numbers.length > 1000) throw new Error("โปรเจกต์มีหมายเลขเกิน 1,000 รายการ");
+  if (payload.history != null && !Array.isArray(payload.history)) throw new Error("ประวัติโปรเจกต์ไม่ถูกต้อง");
+  if (payload.settings != null && typeof payload.settings !== "object") throw new Error("การตั้งค่าโปรเจกต์ไม่ถูกต้อง");
+  if (payload.assets != null && typeof payload.assets !== "object") throw new Error("ข้อมูลรูปภาพโปรเจกต์ไม่ถูกต้อง");
+  if (payload.assets?.segmentMappings != null && typeof payload.assets.segmentMappings !== "object") {
+    throw new Error("ข้อมูลรูปประจำช่องไม่ถูกต้อง");
+  }
+  return payload;
 }

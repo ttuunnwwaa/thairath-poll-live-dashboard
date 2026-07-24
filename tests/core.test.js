@@ -2,13 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   csvEscape,
+  detectDelimiter,
   dedupeEntries,
   generateRange,
+  isSafeSvg,
   normalizeAngle,
+  parseDelimitedText,
   parseEntries,
   secureRandomIndex,
   targetRotation,
   TAU,
+  validateProjectPayload,
+  winnerIndexAtPointer,
 } from "../src/core.js";
 
 test("parses common delimiters and removes empty values", () => {
@@ -46,6 +51,65 @@ test("target rotation stops the chosen segment center at the pointer", () => {
   assert.ok(Math.abs(normalizeAngle(target) - normalizeAngle(-(4.5) * arc)) < 1e-9);
 });
 
+test("pointer alignment is exact for every supported pool size", () => {
+  for (const count of [2, 10, 100, 500, 1000]) {
+    for (const winnerIndex of [0, Math.floor(count / 2), count - 1]) {
+      const target = targetRotation(1.2345, winnerIndex, count, 6);
+      assert.equal(winnerIndexAtPointer(target, count), winnerIndex);
+    }
+  }
+});
+
 test("CSV values are escaped for Excel-compatible output", () => {
   assert.equal(csvEscape('A,"B"'), '"A,""B"""');
+});
+
+test("parses UTF-8 Thai CSV, leading zeroes, quoted commas, and escaped quotes", () => {
+  const csv = '\uFEFFหมายเลข,ชื่อ\n"001","สมชาย, กรุงเทพ"\n"002","คำว่า ""โชคดี"""';
+  assert.equal(detectDelimiter(csv), ",");
+  assert.deepEqual(parseDelimitedText(csv), [
+    ["หมายเลข", "ชื่อ"],
+    ["001", "สมชาย, กรุงเทพ"],
+    ["002", 'คำว่า "โชคดี"'],
+  ]);
+});
+
+test("detects semicolon and tab delimiters", () => {
+  assert.equal(detectDelimiter("เลข;ชื่อ\n001;ไทย"), ";");
+  assert.equal(detectDelimiter("เลข\tชื่อ\n001\tไทย"), "\t");
+});
+
+test("rejects active content in SVG uploads", () => {
+  assert.equal(isSafeSvg("<svg><circle cx=\"1\" cy=\"1\" r=\"1\"/></svg>"), true);
+  assert.equal(isSafeSvg("<svg onload=\"alert(1)\"></svg>"), false);
+  assert.equal(isSafeSvg("<svg><script>alert(1)</script></svg>"), false);
+  assert.equal(isSafeSvg("<svg><foreignObject>html</foreignObject></svg>"), false);
+});
+
+test("project export/import round-trip preserves images, history, and leading zeroes", () => {
+  const project = {
+    format: "lucky-draw-wheel",
+    numbers: [{ id: "num-1", label: "001", removed: true }],
+    history: [{ id: "draw-1", number: "001", removed: true }],
+    settings: { removeConfirmed: true },
+    assets: {
+      background: "data:image/png;base64,AAAA",
+      logo: "data:image/png;base64,BBBB",
+      pointer: "data:image/png;base64,CCCC",
+      segmentMappings: { "001": "data:image/png;base64,DDDD" },
+    },
+  };
+  const restored = validateProjectPayload(JSON.parse(JSON.stringify(project)));
+  assert.deepEqual(restored, project);
+  assert.equal(restored.numbers[0].label, "001");
+  assert.equal(restored.history[0].number, "001");
+  assert.equal(restored.assets.segmentMappings["001"], "data:image/png;base64,DDDD");
+});
+
+test("rejects malformed and oversized project imports", () => {
+  assert.throws(() => validateProjectPayload({ format: "other", numbers: [] }), /รูปแบบไฟล์/);
+  assert.throws(
+    () => validateProjectPayload({ format: "lucky-draw-wheel", numbers: Array(1001).fill({}) }),
+    /1,000/,
+  );
 });

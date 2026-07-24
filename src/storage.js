@@ -21,7 +21,10 @@ export async function loadProject() {
     const transaction = database.transaction(STORE_NAME, "readonly");
     const request = transaction.objectStore(STORE_NAME).get(KEY);
     request.onsuccess = () => resolve(request.result ?? null);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => {
+      database.close();
+      reject(request.error);
+    };
     transaction.oncomplete = () => database.close();
   });
 }
@@ -35,7 +38,10 @@ export async function saveProject(project) {
       database.close();
       resolve();
     };
-    transaction.onerror = () => reject(transaction.error);
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error);
+    };
   });
 }
 
@@ -48,6 +54,9 @@ export async function clearProject() {
       database.close();
       resolve();
     };
-    transaction.onerror = () => reject(transaction.error);
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error);
+    };
   });
 }
