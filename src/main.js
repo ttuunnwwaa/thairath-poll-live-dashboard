@@ -299,6 +299,8 @@ function applyVisualSettings() {
   root.style.setProperty("--border", state.settings.border);
   root.style.setProperty("--text", state.settings.text);
   root.style.setProperty("--glow", state.settings.glow);
+  root.style.setProperty("--wheel-font-family", state.settings.fontFamily);
+  root.style.setProperty("--wheel-font-weight", state.settings.fontWeight);
   root.style.setProperty("--hub-size", `${state.settings.logoSize}%`);
   root.style.setProperty("--logo-image-size", `${state.settings.logoImageSize}%`);
   root.style.setProperty("--logo-image-x", `${state.settings.logoImageX}%`);
@@ -322,6 +324,7 @@ function applyVisualSettings() {
   $("#topbarReveal").hidden = state.settings.topbarVisible;
   $("#hideTopbarButton").setAttribute("aria-pressed", String(!state.settings.topbarVisible));
   $("#app").classList.toggle("performance-mode", state.settings.performanceMode);
+  $("#app").classList.toggle("glow-disabled", !state.settings.glowEnabled);
   const backgroundLayer = $("#eventBackground");
   backgroundLayer.style.backgroundImage = state.assets.background
     ? `linear-gradient(rgba(2,10,17,${state.settings.overlayDarkness / 100}),rgba(2,10,17,${state.settings.overlayDarkness / 100})),url("${state.assets.background}")`
@@ -607,17 +610,21 @@ function drawWheel() {
       context.save();
       context.rotate(start + arc / 2);
       const labelRadius = Math.min(92, Math.max(40, Number(state.settings.labelRadius) || 70));
-      context.translate(radius * (labelRadius / 100), 0);
+      const labelDistance = radius * (labelRadius / 100);
+      context.translate(labelDistance, 0);
       if (state.settings.textDirection === "tangent") context.rotate(Math.PI / 2);
       context.fillStyle = state.settings.text;
       // Anchor each label by its own center so changing the font size never shifts it inside the segment.
       context.textAlign = "center";
       context.textBaseline = "middle";
-      const adaptive = Math.max(7, Math.min(state.settings.fontSize, arc * radius * 0.72));
+      const adaptive = Math.max(7, Math.min(state.settings.fontSize, arc * labelDistance * 0.72));
       context.font = `${state.settings.fontWeight} ${adaptive}px ${state.settings.fontFamily}`;
       context.shadowColor = "rgba(0,0,0,.68)";
       context.shadowBlur = 4;
-      const maxWidth = Math.max(24, radius * 0.28);
+      const hubRadius = radius * (state.settings.logoSize / 100);
+      const radialRoom = 2 * Math.min(labelDistance - hubRadius - 4, radius * 0.96 - labelDistance);
+      const tangentRoom = arc * labelDistance * 0.82;
+      const maxWidth = Math.max(24, state.settings.textDirection === "tangent" ? tangentRoom : radialRoom);
       const label = item.label.length > 14 ? `${item.label.slice(0, 12)}…` : item.label;
       const fittedSize = proportionalFontSize(adaptive, context.measureText(label).width, maxWidth);
       context.font = `${state.settings.fontWeight} ${fittedSize}px ${state.settings.fontFamily}`;
