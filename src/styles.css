@@ -1048,6 +1048,15 @@ output {
   color: var(--secondary);
 }
 
+.range-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  color: #71888e;
+  font-size: 8px;
+  font-weight: 500;
+}
+
 .panel-primary,
 .panel-secondary,
 .danger-button,

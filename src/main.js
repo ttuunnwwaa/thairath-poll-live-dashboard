@@ -58,7 +58,7 @@ function defaultNumbers() {
 
 function defaultState() {
   return {
-    version: 6,
+    version: 7,
     projectId: uid("project"),
     sessionId: uid("session"),
     campaignTitle: "แคมเปญทายผลแชมป์ฟุตบอลโลก 2026",
@@ -77,6 +77,7 @@ function defaultState() {
       fontFamily: "system-ui",
       fontWeight: 700,
       fontSize: 16,
+      labelRadius: 70,
       textDirection: "radial",
       showLabels: true,
       topbarVisible: true,
@@ -381,6 +382,7 @@ function applyStateToControls() {
     fontFamily: state.settings.fontFamily,
     fontWeight: String(state.settings.fontWeight),
     fontSize: state.settings.fontSize,
+    labelRadius: state.settings.labelRadius,
     textDirection: state.settings.textDirection,
     showLabels: state.settings.showLabels,
     spinDuration: state.settings.spinDuration,
@@ -431,6 +433,7 @@ function applyStateToControls() {
 
 function updateOutputs() {
   $("#fontSizeValue").textContent = `${state.settings.fontSize}px`;
+  $("#labelRadiusValue").textContent = `${state.settings.labelRadius}%`;
   $("#durationValue").textContent = `${state.settings.spinDuration} วินาที`;
   const resultDelay = Math.max(0, Number(state.settings.resultDelay) || 0);
   $("#resultDelayValue").textContent = resultDelay === 0 ? "แสดงทันที" : `${resultDelay.toFixed(1)} วินาที`;
@@ -603,7 +606,8 @@ function drawWheel() {
     if (showLabels && index % labelStep === 0) {
       context.save();
       context.rotate(start + arc / 2);
-      context.translate(radius * (count > 60 ? 0.78 : 0.7), 0);
+      const labelRadius = Math.min(92, Math.max(40, Number(state.settings.labelRadius) || 70));
+      context.translate(radius * (labelRadius / 100), 0);
       if (state.settings.textDirection === "tangent") context.rotate(Math.PI / 2);
       context.fillStyle = state.settings.text;
       // Anchor each label by its own center so changing the font size never shifts it inside the segment.
@@ -1324,6 +1328,7 @@ function bindControls() {
     fontFamily: ["fontFamily", "setting"],
     fontWeight: ["fontWeight", "number"],
     fontSize: ["fontSize", "number"],
+    labelRadius: ["labelRadius", "number"],
     textDirection: ["textDirection", "setting"],
     showLabels: ["showLabels", "checked"],
     spinDuration: ["spinDuration", "number"],
