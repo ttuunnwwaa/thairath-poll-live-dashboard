@@ -108,11 +108,12 @@ test("project export/import round-trip preserves images, history, and leading ze
     format: "lucky-draw-wheel",
     numbers: [{ id: "num-1", label: "001", removed: true }],
     history: [{ id: "draw-1", number: "001", removed: true }],
-    settings: { removeConfirmed: true },
+    settings: { removeConfirmed: true, wheelScale: 115 },
     assets: {
       background: "data:image/png;base64,AAAA",
       logo: "data:image/png;base64,BBBB",
       pointer: "data:image/png;base64,CCCC",
+      stageOverlays: [{ id: "overlay-1", name: "Sponsor", data: "data:image/png;base64,EEEE", size: 20, x: 50, y: 85 }],
       segmentMappings: { "001": "data:image/png;base64,DDDD" },
     },
   };
@@ -121,6 +122,8 @@ test("project export/import round-trip preserves images, history, and leading ze
   assert.equal(restored.numbers[0].label, "001");
   assert.equal(restored.history[0].number, "001");
   assert.equal(restored.assets.segmentMappings["001"], "data:image/png;base64,DDDD");
+  assert.equal(restored.assets.stageOverlays[0].name, "Sponsor");
+  assert.equal(restored.settings.wheelScale, 115);
 });
 
 test("rejects malformed and oversized project imports", () => {

@@ -78,6 +78,23 @@ label.file-button {
   background-repeat: no-repeat;
 }
 
+.stage-overlays {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.stage-overlay-image {
+  position: absolute;
+  height: auto;
+  max-height: 90vh;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.24));
+}
+
 #app::before,
 #app::after {
   content: "";
@@ -363,6 +380,8 @@ label.file-button {
   max-width: 1580px;
   margin: 0 auto;
   padding: clamp(24px, 3vw, 46px) clamp(24px, 4vw, 72px) 40px;
+  position: relative;
+  z-index: 1;
 }
 
 .stage-heading {
@@ -437,12 +456,12 @@ label.file-button {
 }
 
 .wheel-frame {
-  width: min(58vw, 690px);
+  width: min(var(--wheel-width-vw, 58vw), var(--wheel-width-px, 690px), var(--wheel-height-limit, calc(100vh - 390px)));
   aspect-ratio: 1;
-  max-height: calc(100vh - 390px);
-  max-width: calc(100vh - 390px);
-  min-width: 380px;
-  min-height: 380px;
+  max-height: none;
+  max-width: none;
+  min-width: min(240px, calc(100vw - 32px));
+  min-height: 0;
   position: relative;
   border-radius: 50%;
   isolation: isolate;
@@ -1317,6 +1336,46 @@ output {
   gap: 8px;
 }
 
+.stage-overlay-editor-list {
+  display: grid;
+  gap: 10px;
+}
+
+.stage-overlay-editor {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.stage-overlay-editor-head {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.stage-overlay-preview {
+  width: 42px;
+  height: 42px;
+  padding: 3px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.stage-overlay-editor-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.stage-overlay-editor .form-grid {
+  margin-top: 0;
+}
+
 .mapping-row input {
   margin: 0 !important;
 }
@@ -1704,9 +1763,10 @@ kbd {
 }
 
 .stage-mode .wheel-frame {
-  width: min(72vh, 72vw);
+  width: min(var(--stage-wheel-size, 72vmin), calc(100vw - 48px), calc(100vh - 150px));
   max-width: none;
   max-height: none;
+  min-width: min(240px, calc(100vw - 32px));
 }
 
 .stage-mode .spin-button {
@@ -1906,8 +1966,8 @@ kbd {
   }
 
   .wheel-frame {
-    min-width: 278px;
-    min-height: 278px;
+    min-width: min(240px, calc(100vw - 24px));
+    min-height: 0;
   }
 
   .spin-button {

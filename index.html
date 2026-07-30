@@ -19,6 +19,7 @@
   <body>
     <div id="app">
       <div class="event-background" id="eventBackground" aria-hidden="true" hidden></div>
+      <div class="stage-overlays" id="stageOverlays" aria-hidden="true"></div>
       <div class="ambient ambient-a"></div>
       <div class="ambient ambient-b"></div>
       <header class="topbar" id="topbar">
@@ -178,6 +179,11 @@
               <button class="danger-outline" data-remove-asset="background" type="button">ลบภาพพื้นหลัง</button>
             </div>
             <div class="panel-section">
+              <h3>ภาพเสริมบนเวที</h3><p>เพิ่มได้สูงสุด 6 รูป สำหรับโลโก้ ป้ายสปอนเซอร์ หรือ Artwork ตกแต่ง แนะนำ PNG/WebP พื้นโปร่งใส ไฟล์ละไม่เกิน 4 MB</p>
+              <label class="upload-drop">＋ เพิ่มภาพเสริม<input id="stageOverlayUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
+              <div class="stage-overlay-editor-list" id="stageOverlayList"></div>
+            </div>
+            <div class="panel-section">
               <h3>โลโก้กลางวงล้อ</h3><p>แนะนำ PNG/WebP พื้นโปร่งใส 1200×1200 px และเว้น Safe Area รอบโลโก้ 12%</p>
               <label class="upload-drop">＋ เลือกโลโก้<input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
               <div class="form-grid two">
@@ -240,6 +246,7 @@
             </div>
             <div class="panel-section toggles">
               <h3>องค์ประกอบบนเวที</h3>
+              <label>ขนาดวงล้อ <output id="wheelScaleValue">100%</output><input id="wheelScale" type="range" min="60" max="140" value="100" /></label>
               <label class="toggle"><input id="scoreboardVisible" type="checkbox" checked /><span></span><b>แสดงแถบข้อมูลด้านขวา</b></label>
               <label class="toggle"><input id="nextDrawVisible" type="checkbox" checked /><span></span><b>แสดง “รอบถัดไป”</b></label>
               <p class="field-note">ปิดแถบข้อมูลเมื่อต้องการให้วงล้ออยู่กึ่งกลาง โดยโหมดเวทีจะซ่อน “รอบถัดไป” เสมอ</p>

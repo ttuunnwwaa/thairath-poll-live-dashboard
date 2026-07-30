@@ -58,7 +58,7 @@ function defaultNumbers() {
 
 function defaultState() {
   return {
-    version: 7,
+    version: 8,
     projectId: uid("project"),
     sessionId: uid("session"),
     campaignTitle: "แคมเปญทายผลแชมป์ฟุตบอลโลก 2026",
@@ -85,6 +85,7 @@ function defaultState() {
       stageHeadingVisible: true,
       scoreboardVisible: true,
       nextDrawVisible: true,
+      wheelScale: 100,
       spinDuration: 7,
       resultDelay: 1.5,
       minRotations: 6,
@@ -127,6 +128,7 @@ function defaultState() {
       segmentImage: null,
       winnerSound: null,
       customFont: null,
+      stageOverlays: [],
       segmentMappings: {},
     },
   };
@@ -291,8 +293,19 @@ function applyCustomFont() {
   });
 }
 
+function applyWheelDimensions() {
+  const scale = Math.min(140, Math.max(60, Number(state.settings.wheelScale) || 100));
+  const heightOffset = Math.max(240, 390 - (scale - 100) * 3);
+  const root = document.documentElement;
+  root.style.setProperty("--wheel-width-vw", `${58 * (scale / 100)}vw`);
+  root.style.setProperty("--wheel-width-px", `${690 * (scale / 100)}px`);
+  root.style.setProperty("--wheel-height-limit", `${Math.max(240, innerHeight - heightOffset)}px`);
+  root.style.setProperty("--stage-wheel-size", `${72 * (scale / 100)}vmin`);
+}
+
 function applyVisualSettings() {
   applyCustomFont();
+  applyWheelDimensions();
   const root = document.documentElement;
   root.style.setProperty("--primary", state.settings.primary);
   root.style.setProperty("--secondary", state.settings.secondary);
@@ -358,6 +371,7 @@ function applyVisualSettings() {
   pointer.hidden = !state.assets.pointer;
   $("#pointerDefault").hidden = Boolean(state.assets.pointer);
   if (state.assets.pointer) pointer.src = state.assets.pointer;
+  renderStageOverlays();
   syncSpinClasses();
   $("#soundToggle").textContent = state.settings.soundEnabled ? "♪" : "⊘";
 }
@@ -377,6 +391,7 @@ function applyStateToControls() {
     stageHeadingVisible: state.settings.stageHeadingVisible,
     scoreboardVisible: state.settings.scoreboardVisible,
     nextDrawVisible: state.settings.nextDrawVisible,
+    wheelScale: state.settings.wheelScale,
     primaryColor: state.settings.primary,
     secondaryColor: state.settings.secondary,
     borderColor: state.settings.border,
@@ -437,6 +452,7 @@ function applyStateToControls() {
 function updateOutputs() {
   $("#fontSizeValue").textContent = `${state.settings.fontSize}px`;
   $("#labelRadiusValue").textContent = `${state.settings.labelRadius}%`;
+  $("#wheelScaleValue").textContent = `${state.settings.wheelScale}%`;
   $("#durationValue").textContent = `${state.settings.spinDuration} วินาที`;
   const resultDelay = Math.max(0, Number(state.settings.resultDelay) || 0);
   $("#resultDelayValue").textContent = resultDelay === 0 ? "แสดงทันที" : `${resultDelay.toFixed(1)} วินาที`;
@@ -466,6 +482,7 @@ function updateOutputs() {
 }
 
 function resizeCanvas() {
+  applyWheelDimensions();
   if (resizeQueued) return;
   resizeQueued = true;
   requestAnimationFrame(() => {
@@ -991,6 +1008,58 @@ function renderMappings() {
     : '<p class="empty-note">ยังไม่มีการจับคู่รูปเฉพาะหมายเลข</p>';
 }
 
+function overlayValue(value, minimum, maximum, fallback) {
+  const number = Number(value);
+  return Math.min(maximum, Math.max(minimum, Number.isFinite(number) ? number : fallback));
+}
+
+function renderStageOverlays() {
+  const container = $("#stageOverlays");
+  container.replaceChildren();
+  for (const [index, overlay] of (state.assets.stageOverlays ?? []).entries()) {
+    if (!overlay?.data) continue;
+    const image = document.createElement("img");
+    image.className = "stage-overlay-image";
+    image.alt = "";
+    image.decoding = "async";
+    image.src = overlay.data;
+    image.style.left = `${overlayValue(overlay.x, 0, 100, 50)}%`;
+    image.style.top = `${overlayValue(overlay.y, 0, 100, 78)}%`;
+    image.style.width = `${overlayValue(overlay.size, 3, 80, 18)}vw`;
+    image.style.zIndex = String(index + 1);
+    container.append(image);
+  }
+}
+
+function renderStageOverlayControls() {
+  const container = $("#stageOverlayList");
+  const overlays = state.assets.stageOverlays ?? [];
+  container.innerHTML = overlays.length
+    ? overlays
+        .map((overlay, index) => {
+          const size = overlayValue(overlay.size, 3, 80, 18);
+          const x = overlayValue(overlay.x, 0, 100, 50);
+          const y = overlayValue(overlay.y, 0, 100, 78);
+          return `<div class="stage-overlay-editor" data-overlay-index="${index}">
+            <div class="stage-overlay-editor-head">
+              <img class="stage-overlay-preview" alt="" />
+              <strong title="${escapeHTML(overlay.name || `ภาพเสริม ${index + 1}`)}">${escapeHTML(overlay.name || `ภาพเสริม ${index + 1}`)}</strong>
+              <button class="row-action" data-overlay-delete="${index}" type="button">ลบ</button>
+            </div>
+            <div class="form-grid two">
+              <label>ขนาด <output data-overlay-output="size">${size}%</output><input type="range" min="3" max="80" value="${size}" data-overlay-control="size" data-overlay-index="${index}" /></label>
+              <label>ตำแหน่ง X <output data-overlay-output="x">${x}%</output><input type="range" min="0" max="100" value="${x}" data-overlay-control="x" data-overlay-index="${index}" /></label>
+              <label>ตำแหน่ง Y <output data-overlay-output="y">${y}%</output><input type="range" min="0" max="100" value="${y}" data-overlay-control="y" data-overlay-index="${index}" /></label>
+            </div>
+          </div>`;
+        })
+        .join("")
+    : '<p class="empty-note">ยังไม่มีภาพเสริมบนเวที</p>';
+  $$(".stage-overlay-preview", container).forEach((image, index) => {
+    image.src = overlays[index].data;
+  });
+}
+
 function download(filename, content, type = "text/plain;charset=utf-8") {
   const blob = content instanceof Blob ? content : new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -1030,9 +1099,10 @@ function exportHistory() {
   download("lucky-draw-history.csv", formatCSV(rows), "text/csv;charset=utf-8");
 }
 
-async function readFileAsDataURL(file, { audio = false, font = false } = {}) {
-  const limit = font ? 6 * 1024 * 1024 : audio ? 12 * 1024 * 1024 : 8 * 1024 * 1024;
-  if (file.size > limit) throw new Error(`ไฟล์มีขนาดเกิน ${font ? 6 : audio ? 12 : 8} MB`);
+async function readFileAsDataURL(file, { audio = false, font = false, maxSizeMB = null } = {}) {
+  const sizeLimitMB = maxSizeMB ?? (font ? 6 : audio ? 12 : 8);
+  const limit = sizeLimitMB * 1024 * 1024;
+  if (file.size > limit) throw new Error(`ไฟล์มีขนาดเกิน ${sizeLimitMB} MB`);
   const extension = file.name.split(".").pop()?.toLowerCase();
   if (font && !["woff2", "woff", "ttf", "otf"].includes(extension)) {
     throw new Error("รองรับเฉพาะฟอนต์ WOFF2, WOFF, TTF และ OTF");
@@ -1327,6 +1397,7 @@ function bindControls() {
     stageHeadingVisible: ["stageHeadingVisible", "checked"],
     scoreboardVisible: ["scoreboardVisible", "checked"],
     nextDrawVisible: ["nextDrawVisible", "checked"],
+    wheelScale: ["wheelScale", "number"],
     primaryColor: ["primary", "color"],
     secondaryColor: ["secondary", "color"],
     borderColor: ["border", "color"],
@@ -1419,7 +1490,7 @@ function bindControls() {
       if (key === "backgroundScale") $("#backgroundFit").value = "custom";
       if (["backgroundX", "backgroundY"].includes(key)) $("#backgroundPosition").value = "custom";
       updateOutputs();
-      if (["logoSize", "pointerSize", "pointerOffset", "scoreboardVisible", "stageHeadingVisible"].includes(key)) {
+      if (["wheelScale", "logoSize", "pointerSize", "pointerOffset", "scoreboardVisible", "stageHeadingVisible"].includes(key)) {
         setTimeout(resizeCanvas, 40);
       }
     }
@@ -1439,6 +1510,53 @@ function bindControls() {
   );
 
   $("#backgroundUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "background"));
+  $("#stageOverlayUpload").addEventListener("change", async (event) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      if ((state.assets.stageOverlays ?? []).length >= 6) throw new Error("เพิ่มภาพเสริมได้สูงสุด 6 รูป");
+      const data = await readFileAsDataURL(file, { maxSizeMB: 4 });
+      updateState((draft) => {
+        draft.assets.stageOverlays.push({
+          id: uid("overlay"),
+          name: file.name.slice(0, 120),
+          data,
+          size: 18,
+          x: 50,
+          y: 78,
+        });
+      }, { redraw: false });
+      renderStageOverlayControls();
+      showToast(`เพิ่มภาพเสริม ${file.name} แล้ว`);
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      input.value = "";
+    }
+  });
+  $("#stageOverlayList").addEventListener("input", (event) => {
+    const input = event.target.closest("[data-overlay-control]");
+    if (!input) return;
+    const index = Number(input.dataset.overlayIndex);
+    const key = input.dataset.overlayControl;
+    const overlay = state.assets.stageOverlays?.[index];
+    if (!overlay || !["size", "x", "y"].includes(key)) return;
+    overlay[key] = Number(input.value);
+    input.closest("label")?.querySelector(`[data-overlay-output="${key}"]`)?.replaceChildren(`${input.value}%`);
+    renderStageOverlays();
+    scheduleSave();
+  });
+  $("#stageOverlayList").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-overlay-delete]");
+    if (!button) return;
+    const index = Number(button.dataset.overlayDelete);
+    updateState((draft) => {
+      draft.assets.stageOverlays.splice(index, 1);
+    }, { redraw: false });
+    renderStageOverlayControls();
+    showToast("ลบภาพเสริมแล้ว");
+  });
   $("#topbarLogoUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "topbarLogo"));
   $("#logoUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "logo"));
   $("#pointerUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "pointer"));
@@ -1569,6 +1687,8 @@ function bindControls() {
       updateDashboard();
       renderNumberList();
       renderHistory();
+      renderMappings();
+      renderStageOverlayControls();
       resizeCanvas();
       scheduleSave();
       showToast("โหลดโปรเจกต์เรียบร้อยแล้ว");
@@ -1590,6 +1710,8 @@ function bindControls() {
     updateDashboard();
     renderNumberList();
     renderHistory();
+    renderMappings();
+    renderStageOverlayControls();
     resizeCanvas();
     scheduleSave();
   });
@@ -1643,12 +1765,26 @@ function mergeState(saved) {
     assets: {
       ...fresh.assets,
       ...(saved.assets ?? {}),
+      stageOverlays: Array.isArray(saved.assets?.stageOverlays)
+        ? saved.assets.stageOverlays
+            .slice(0, 6)
+            .filter((overlay) => overlay && typeof overlay.data === "string" && overlay.data.startsWith("data:image/"))
+            .map((overlay, index) => ({
+              id: typeof overlay.id === "string" ? overlay.id : uid("overlay"),
+              name: typeof overlay.name === "string" ? overlay.name.slice(0, 120) : `ภาพเสริม ${index + 1}`,
+              data: overlay.data,
+              size: overlayValue(overlay.size, 3, 80, 18),
+              x: overlayValue(overlay.x, 0, 100, 50),
+              y: overlayValue(overlay.y, 0, 100, 78),
+            }))
+        : [],
       segmentMappings: { ...(saved.assets?.segmentMappings ?? {}) },
     },
   };
   if (merged.settings.fontFamily === CUSTOM_FONT_FAMILY && !merged.assets.customFont?.data) {
     merged.settings.fontFamily = "system-ui";
   }
+  merged.settings.wheelScale = Math.min(140, Math.max(60, Number(merged.settings.wheelScale) || 100));
   return merged;
 }
 
@@ -1666,6 +1802,7 @@ async function initialize() {
   renderNumberList();
   renderHistory();
   renderMappings();
+  renderStageOverlayControls();
   bindControls();
   wheelResizeObserver = new ResizeObserver(resizeCanvas);
   wheelResizeObserver.observe(wheelFrame);
