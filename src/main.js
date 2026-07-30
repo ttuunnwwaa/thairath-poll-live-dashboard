@@ -606,7 +606,8 @@ function drawWheel() {
       context.translate(radius * (count > 60 ? 0.78 : 0.7), 0);
       if (state.settings.textDirection === "tangent") context.rotate(Math.PI / 2);
       context.fillStyle = state.settings.text;
-      context.textAlign = "right";
+      // Anchor each label by its own center so changing the font size never shifts it inside the segment.
+      context.textAlign = "center";
       context.textBaseline = "middle";
       const adaptive = Math.max(7, Math.min(state.settings.fontSize, arc * radius * 0.72));
       context.font = `${state.settings.fontWeight} ${adaptive}px ${state.settings.fontFamily}`;
