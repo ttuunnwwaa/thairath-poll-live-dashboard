@@ -55,7 +55,7 @@ function defaultNumbers() {
 
 function defaultState() {
   return {
-    version: 4,
+    version: 5,
     projectId: uid("project"),
     sessionId: uid("session"),
     campaignTitle: "แคมเปญทายผลแชมป์ฟุตบอลโลก 2026",
@@ -96,12 +96,24 @@ function defaultState() {
       performanceMode: false,
       backgroundFit: "cover",
       backgroundPosition: "center",
+      backgroundScale: 100,
+      backgroundX: 50,
+      backgroundY: 50,
       overlayDarkness: 55,
       backgroundBlur: 0,
       logoSize: 34,
+      logoImageSize: 78,
+      logoImageX: 0,
+      logoImageY: 0,
       logoBackgroundTransparent: false,
       pointerSize: 74,
       pointerOffset: -8,
+      pointerX: 0,
+      pointerRotation: 0,
+      segmentImageFit: "contain",
+      segmentImageShape: "circle",
+      segmentImageSize: 14,
+      segmentImageRadius: 72,
     },
     assets: {
       background: null,
@@ -238,8 +250,13 @@ function applyVisualSettings() {
   root.style.setProperty("--text", state.settings.text);
   root.style.setProperty("--glow", state.settings.glow);
   root.style.setProperty("--hub-size", `${state.settings.logoSize}%`);
+  root.style.setProperty("--logo-image-size", `${state.settings.logoImageSize}%`);
+  root.style.setProperty("--logo-image-x", `${state.settings.logoImageX}%`);
+  root.style.setProperty("--logo-image-y", `${state.settings.logoImageY}%`);
   root.style.setProperty("--pointer-size", `${state.settings.pointerSize}px`);
   root.style.setProperty("--pointer-offset", `${state.settings.pointerOffset}px`);
+  root.style.setProperty("--pointer-x", `${state.settings.pointerX}px`);
+  root.style.setProperty("--pointer-rotation", `${state.settings.pointerRotation}deg`);
   root.style.setProperty("--topbar-logo-size", `${state.settings.topbarLogoSize}px`);
   root.style.setProperty("--shake-angle", `${(state.settings.pointerStrength / 100) * 12}deg`);
   $("#campaignTitle").textContent = state.campaignTitle;
@@ -259,8 +276,14 @@ function applyVisualSettings() {
   backgroundLayer.style.backgroundImage = state.assets.background
     ? `linear-gradient(rgba(2,10,17,${state.settings.overlayDarkness / 100}),rgba(2,10,17,${state.settings.overlayDarkness / 100})),url("${state.assets.background}")`
     : "";
-  backgroundLayer.style.backgroundSize = state.assets.background ? state.settings.backgroundFit : "";
-  backgroundLayer.style.backgroundPosition = state.assets.background ? state.settings.backgroundPosition : "";
+  const backgroundImageSize =
+    state.settings.backgroundFit === "custom" ? `auto ${state.settings.backgroundScale}%` : state.settings.backgroundFit;
+  const backgroundImagePosition =
+    state.settings.backgroundPosition === "custom"
+      ? `${state.settings.backgroundX}% ${state.settings.backgroundY}%`
+      : state.settings.backgroundPosition;
+  backgroundLayer.style.backgroundSize = state.assets.background ? `100% 100%, ${backgroundImageSize}` : "";
+  backgroundLayer.style.backgroundPosition = state.assets.background ? `center, ${backgroundImagePosition}` : "";
   backgroundLayer.style.filter =
     state.assets.background && state.settings.backgroundBlur && !state.settings.performanceMode
       ? `blur(${state.settings.backgroundBlur}px)`
@@ -326,12 +349,24 @@ function applyStateToControls() {
     performanceMode: state.settings.performanceMode,
     backgroundFit: state.settings.backgroundFit,
     backgroundPosition: state.settings.backgroundPosition,
+    backgroundScale: state.settings.backgroundScale,
+    backgroundX: state.settings.backgroundX,
+    backgroundY: state.settings.backgroundY,
     overlayDarkness: state.settings.overlayDarkness,
     backgroundBlur: state.settings.backgroundBlur,
     logoSize: state.settings.logoSize,
+    logoImageSize: state.settings.logoImageSize,
+    logoImageX: state.settings.logoImageX,
+    logoImageY: state.settings.logoImageY,
     logoBackgroundTransparent: state.settings.logoBackgroundTransparent,
     pointerSize: state.settings.pointerSize,
     pointerOffset: state.settings.pointerOffset,
+    pointerX: state.settings.pointerX,
+    pointerRotation: state.settings.pointerRotation,
+    segmentImageFit: state.settings.segmentImageFit,
+    segmentImageShape: state.settings.segmentImageShape,
+    segmentImageSize: state.settings.segmentImageSize,
+    segmentImageRadius: state.settings.segmentImageRadius,
   };
   for (const [id, value] of Object.entries(fields)) {
     const element = $(`#${id}`);
@@ -355,9 +390,19 @@ function updateOutputs() {
   $("#volumeValue").textContent = `${state.settings.volume}%`;
   $("#overlayValue").textContent = `${state.settings.overlayDarkness}%`;
   $("#blurValue").textContent = `${state.settings.backgroundBlur}px`;
+  $("#backgroundScaleValue").textContent = `${state.settings.backgroundScale}%`;
+  $("#backgroundXValue").textContent = `${state.settings.backgroundX}%`;
+  $("#backgroundYValue").textContent = `${state.settings.backgroundY}%`;
   $("#logoSizeValue").textContent = `${state.settings.logoSize}%`;
+  $("#logoImageSizeValue").textContent = `${state.settings.logoImageSize}%`;
+  $("#logoImageXValue").textContent = `${state.settings.logoImageX}%`;
+  $("#logoImageYValue").textContent = `${state.settings.logoImageY}%`;
   $("#pointerSizeValue").textContent = `${state.settings.pointerSize}px`;
   $("#pointerOffsetValue").textContent = `${state.settings.pointerOffset}px`;
+  $("#pointerXValue").textContent = `${state.settings.pointerX}px`;
+  $("#pointerRotationValue").textContent = `${state.settings.pointerRotation}°`;
+  $("#segmentImageSizeValue").textContent = `${state.settings.segmentImageSize}%`;
+  $("#segmentImageRadiusValue").textContent = `${state.settings.segmentImageRadius}%`;
   $("#topbarLogoSizeValue").textContent = `${state.settings.topbarLogoSize}px`;
   const ratio = contrastRatio(state.settings.text, state.settings.primary);
   $("#contrastNote").textContent =
@@ -397,6 +442,23 @@ function loadSegmentAssets() {
     image.src = source;
     mappedImages.set(number, image);
   }
+}
+
+function drawImageFitted(image, x, y, width, height, fit = "contain") {
+  const sourceWidth = image.naturalWidth || image.width || 1;
+  const sourceHeight = image.naturalHeight || image.height || 1;
+  const scale = fit === "cover"
+    ? Math.max(width / sourceWidth, height / sourceHeight)
+    : Math.min(width / sourceWidth, height / sourceHeight);
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
+  context.drawImage(
+    image,
+    x + (width - drawWidth) / 2,
+    y + (height - drawHeight) / 2,
+    drawWidth,
+    drawHeight,
+  );
 }
 
 function drawWheel() {
@@ -467,13 +529,25 @@ function drawWheel() {
     const mapped = mappedImages.get(item.label);
     const image = mapped?.complete ? mapped : segmentImage?.complete ? segmentImage : null;
     if (image && (count <= 80 || index % labelStep === 0)) {
+      const imageRadius = radius * (state.settings.segmentImageRadius / 100);
+      const requestedSize = radius * (state.settings.segmentImageSize / 100);
+      const availableArcSize = count <= 12 ? radius * 0.4 : arc * radius * 0.75;
+      const imageSize = Math.min(requestedSize, availableArcSize);
       context.save();
       context.rotate(start + arc / 2);
-      context.beginPath();
-      context.arc(radius * 0.72, 0, Math.min(radius * 0.07, arc * radius * 0.28), 0, TAU);
-      context.clip();
-      const imageSize = Math.min(radius * 0.14, arc * radius * 0.56);
-      context.drawImage(image, radius * 0.72 - imageSize / 2, -imageSize / 2, imageSize, imageSize);
+      if (state.settings.segmentImageShape === "circle") {
+        context.beginPath();
+        context.arc(imageRadius, 0, imageSize / 2, 0, TAU);
+        context.clip();
+      }
+      drawImageFitted(
+        image,
+        imageRadius - imageSize / 2,
+        -imageSize / 2,
+        imageSize,
+        imageSize,
+        state.settings.segmentImageFit,
+      );
       context.restore();
     }
 
@@ -1190,12 +1264,24 @@ function bindControls() {
     performanceMode: ["performanceMode", "checked"],
     backgroundFit: ["backgroundFit", "setting"],
     backgroundPosition: ["backgroundPosition", "setting"],
+    backgroundScale: ["backgroundScale", "number"],
+    backgroundX: ["backgroundX", "number"],
+    backgroundY: ["backgroundY", "number"],
     overlayDarkness: ["overlayDarkness", "number"],
     backgroundBlur: ["backgroundBlur", "number"],
     logoSize: ["logoSize", "number"],
+    logoImageSize: ["logoImageSize", "number"],
+    logoImageX: ["logoImageX", "number"],
+    logoImageY: ["logoImageY", "number"],
     logoBackgroundTransparent: ["logoBackgroundTransparent", "checked"],
     pointerSize: ["pointerSize", "number"],
     pointerOffset: ["pointerOffset", "number"],
+    pointerX: ["pointerX", "number"],
+    pointerRotation: ["pointerRotation", "number"],
+    segmentImageFit: ["segmentImageFit", "setting"],
+    segmentImageShape: ["segmentImageShape", "setting"],
+    segmentImageSize: ["segmentImageSize", "number"],
+    segmentImageRadius: ["segmentImageRadius", "number"],
   };
   for (const [id, [key, kind]] of Object.entries(appearanceBindings)) {
     const element = $(`#${id}`);
@@ -1209,6 +1295,8 @@ function bindControls() {
             kind === "checked" ? event.target.checked : kind === "number" ? Number(event.target.value) : event.target.value;
           if (kind === "text") draft[key] = value;
           else draft.settings[key] = value;
+          if (key === "backgroundScale") draft.settings.backgroundFit = "custom";
+          if (["backgroundX", "backgroundY"].includes(key)) draft.settings.backgroundPosition = "custom";
         },
         {
           redraw: ![
@@ -1224,9 +1312,23 @@ function bindControls() {
             "resultDelay",
             "pointerShakeEnabled",
             "logoBackgroundTransparent",
+            "backgroundFit",
+            "backgroundPosition",
+            "backgroundScale",
+            "backgroundX",
+            "backgroundY",
+            "overlayDarkness",
+            "backgroundBlur",
+            "logoImageSize",
+            "logoImageX",
+            "logoImageY",
+            "pointerX",
+            "pointerRotation",
           ].includes(key),
         },
       );
+      if (key === "backgroundScale") $("#backgroundFit").value = "custom";
+      if (["backgroundX", "backgroundY"].includes(key)) $("#backgroundPosition").value = "custom";
       updateOutputs();
       if (["logoSize", "pointerSize", "pointerOffset", "scoreboardVisible", "stageHeadingVisible"].includes(key)) {
         setTimeout(resizeCanvas, 40);

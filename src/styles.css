@@ -76,7 +76,6 @@ label.file-button {
   inset: -24px;
   pointer-events: none;
   background-repeat: no-repeat;
-  transform: scale(1.025);
 }
 
 #app::before,
@@ -502,9 +501,10 @@ label.file-button {
 }
 
 .wheel-hub img {
-  width: 78%;
-  height: 78%;
+  width: var(--logo-image-size, 78%);
+  height: var(--logo-image-size, 78%);
   object-fit: contain;
+  transform: translate(var(--logo-image-x, 0%), var(--logo-image-y, 0%));
 }
 
 .hub-placeholder {
@@ -537,7 +537,7 @@ label.file-button {
 
 .pointer-wrap {
   position: absolute;
-  left: 50%;
+  left: calc(50% + var(--pointer-x, 0px));
   top: var(--pointer-offset, -8px);
   z-index: 8;
   width: var(--pointer-size, 74px);
@@ -555,6 +555,7 @@ body.spinning.pointer-shake-active .pointer-wrap {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  transform: rotate(var(--pointer-rotation, 0deg));
 }
 
 .pointer-default {
@@ -563,6 +564,7 @@ body.spinning.pointer-shake-active .pointer-wrap {
   clip-path: polygon(13% 0, 87% 0, 62% 72%, 50% 100%, 38% 72%);
   background: linear-gradient(90deg, #b98223, #fff0aa 45%, #b47b1e);
   border-radius: 14px;
+  transform: rotate(var(--pointer-rotation, 0deg));
 }
 
 @keyframes pointerRattle {

@@ -167,8 +167,11 @@
               <h3>ภาพพื้นหลังเวที</h3><p>แนะนำ 3840×2160 px (ขั้นต่ำ 1920×1080), อัตราส่วน 16:9 และไฟล์ไม่เกิน 8 MB</p>
               <label class="upload-drop">＋ เลือกภาพพื้นหลัง<input id="backgroundUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
               <div class="form-grid two">
-                <label>การจัดวาง<select id="backgroundFit"><option value="cover">Cover</option><option value="contain">Contain</option><option value="fill">Stretch</option></select></label>
-                <label>ตำแหน่ง<select id="backgroundPosition"><option>center</option><option>top</option><option>bottom</option><option>left</option><option>right</option></select></label>
+                <label>การจัดวาง<select id="backgroundFit"><option value="cover">เต็มพื้นที่ (อาจครอป)</option><option value="contain">เห็นครบทั้งภาพ</option><option value="fill">ยืดเต็มพื้นที่</option><option value="custom">กำหนดขนาดเอง</option></select></label>
+                <label>ตำแหน่งด่วน<select id="backgroundPosition"><option value="center">กึ่งกลาง</option><option value="top">ด้านบน</option><option value="bottom">ด้านล่าง</option><option value="left">ด้านซ้าย</option><option value="right">ด้านขวา</option><option value="custom">กำหนดเอง</option></select></label>
+                <label>ขนาดภาพ <output id="backgroundScaleValue">100%</output><input id="backgroundScale" type="range" min="25" max="250" value="100" /></label>
+                <label>ตำแหน่งแนวนอน <output id="backgroundXValue">50%</output><input id="backgroundX" type="range" min="0" max="100" value="50" /></label>
+                <label>ตำแหน่งแนวตั้ง <output id="backgroundYValue">50%</output><input id="backgroundY" type="range" min="0" max="100" value="50" /></label>
                 <label>ความมืด <output id="overlayValue">55%</output><input id="overlayDarkness" type="range" min="0" max="90" value="55" /></label>
                 <label>เบลอ <output id="blurValue">0px</output><input id="backgroundBlur" type="range" min="0" max="18" value="0" /></label>
               </div>
@@ -177,7 +180,12 @@
             <div class="panel-section">
               <h3>โลโก้กลางวงล้อ</h3><p>แนะนำ PNG/WebP พื้นโปร่งใส 1200×1200 px และเว้น Safe Area รอบโลโก้ 12%</p>
               <label class="upload-drop">＋ เลือกโลโก้<input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
-              <label>ขนาดโลโก้ <output id="logoSizeValue">34%</output><input id="logoSize" type="range" min="20" max="52" value="34" /></label>
+              <div class="form-grid two">
+                <label>ขนาดวงกลมกลาง <output id="logoSizeValue">34%</output><input id="logoSize" type="range" min="20" max="52" value="34" /></label>
+                <label>ขนาดรูปด้านใน <output id="logoImageSizeValue">78%</output><input id="logoImageSize" type="range" min="20" max="150" value="78" /></label>
+                <label>เลื่อนซ้าย–ขวา <output id="logoImageXValue">0%</output><input id="logoImageX" type="range" min="-50" max="50" value="0" /></label>
+                <label>เลื่อนขึ้น–ลง <output id="logoImageYValue">0%</output><input id="logoImageY" type="range" min="-50" max="50" value="0" /></label>
+              </div>
               <label class="toggle"><input id="logoBackgroundTransparent" type="checkbox" /><span></span><b>พื้นหลังโลโก้โปร่งใส</b></label>
               <button class="danger-outline" data-remove-asset="logo" type="button">คืน Placeholder</button>
             </div>
@@ -186,13 +194,21 @@
               <label class="upload-drop">＋ เลือกภาพเข็ม<input id="pointerUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
               <div class="form-grid two">
                 <label>ขนาด <output id="pointerSizeValue">74px</output><input id="pointerSize" type="range" min="44" max="130" value="74" /></label>
-                <label>ระยะ Offset <output id="pointerOffsetValue">-8px</output><input id="pointerOffset" type="range" min="-36" max="24" value="-8" /></label>
+                <label>เลื่อนขึ้น–ลง <output id="pointerOffsetValue">-8px</output><input id="pointerOffset" type="range" min="-80" max="80" value="-8" /></label>
+                <label>เลื่อนซ้าย–ขวา <output id="pointerXValue">0px</output><input id="pointerX" type="range" min="-160" max="160" value="0" /></label>
+                <label>หมุนรูป <output id="pointerRotationValue">0°</output><input id="pointerRotation" type="range" min="-180" max="180" value="0" /></label>
               </div>
               <button class="danger-outline" data-remove-asset="pointer" type="button">คืนเข็มค่าเริ่มต้น</button>
             </div>
             <div class="panel-section">
               <h3>รูปในช่องวงล้อ</h3><p>แนะนำภาพสี่เหลี่ยม 512×512 px สำหรับรูปเดียวทุกช่องหรือรูปจับคู่หมายเลข</p>
               <label class="upload-drop">＋ รูปสำหรับทุกช่อง<input id="segmentImageUpload" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+              <div class="form-grid two">
+                <label>การแสดงรูป<select id="segmentImageFit"><option value="contain">เห็นครบทั้งภาพ</option><option value="cover">เต็มวงกลม (อาจครอป)</option></select></label>
+                <label>กรอบรูป<select id="segmentImageShape"><option value="none">ไม่ครอป</option><option value="circle">วงกลม</option></select></label>
+                <label>ขนาดรูป <output id="segmentImageSizeValue">14%</output><input id="segmentImageSize" type="range" min="4" max="40" value="14" /></label>
+                <label>ระยะจากจุดกลาง <output id="segmentImageRadiusValue">72%</output><input id="segmentImageRadius" type="range" min="30" max="90" value="72" /></label>
+              </div>
               <div class="mapping-row"><input id="mappingNumber" placeholder="หมายเลข เช่น 001" /><label class="file-button">เลือกรูป<input id="mappingImageUpload" type="file" accept="image/png,image/jpeg,image/webp" /></label></div>
               <div id="mappingList" class="mapping-list"></div>
               <button class="danger-outline" data-remove-asset="segmentImage" type="button">ลบรูปกลางทุกช่อง</button>
