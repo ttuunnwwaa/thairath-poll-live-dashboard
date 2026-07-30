@@ -9,6 +9,7 @@ import {
   isSafeSvg,
   parseDelimitedText,
   parseEntries,
+  proportionalFontSize,
   secureRandomIndex,
   spinEaseOut,
   targetRotation,
@@ -17,6 +18,8 @@ import {
   winnerIndexAtPointer,
 } from "./core.js";
 import { clearProject, loadProject, saveProject } from "./storage.js";
+
+const CUSTOM_FONT_FAMILY = "LuckyDrawCustom";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -55,7 +58,7 @@ function defaultNumbers() {
 
 function defaultState() {
   return {
-    version: 5,
+    version: 6,
     projectId: uid("project"),
     sessionId: uid("session"),
     campaignTitle: "แคมเปญทายผลแชมป์ฟุตบอลโลก 2026",
@@ -122,6 +125,7 @@ function defaultState() {
       pointer: null,
       segmentImage: null,
       winnerSound: null,
+      customFont: null,
       segmentMappings: {},
     },
   };
@@ -143,6 +147,7 @@ let focusBeforeModal = null;
 let wheelResizeObserver = null;
 let holdingResult = false;
 let resultDelayTimer = 0;
+let appliedCustomFontData = null;
 
 const canvas = $("#wheelCanvas");
 const context = canvas.getContext("2d", { alpha: false });
@@ -242,7 +247,51 @@ function updateDashboard() {
     : '<p class="empty-note">ผลที่ยืนยันจะแสดงที่นี่</p>';
 }
 
+function applyCustomFont() {
+  const customFont = state.assets.customFont;
+  const option = $("#customFontOption");
+  const status = $("#customFontStatus");
+  const removeButton = $("#removeCustomFont");
+  let style = $("#customFontStyle");
+
+  option.hidden = !customFont?.data;
+  option.disabled = !customFont?.data;
+  removeButton.hidden = !customFont?.data;
+  status.textContent = customFont?.name
+    ? `ติดตั้งแล้ว: ${customFont.name}`
+    : "รองรับ WOFF2, WOFF, TTF และ OTF ขนาดไม่เกิน 6 MB";
+
+  if (!customFont?.data) {
+    style?.remove();
+    appliedCustomFontData = null;
+    return;
+  }
+
+  option.textContent = `อัปโหลด: ${customFont.name || "Custom Font"}`;
+  if (appliedCustomFontData === customFont.data) return;
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "customFontStyle";
+    document.head.append(style);
+  }
+  const format = ["woff2", "woff", "truetype", "opentype"].includes(customFont.format)
+    ? customFont.format
+    : "truetype";
+  style.textContent = `@font-face{font-family:${CUSTOM_FONT_FAMILY};src:url("${customFont.data}") format("${format}");font-style:normal;font-weight:100 900;font-display:swap;}`;
+  appliedCustomFontData = customFont.data;
+  document.fonts?.load?.(`700 16px ${CUSTOM_FONT_FAMILY}`).then((loadedFonts) => {
+    if (state.assets.customFont?.data !== customFont.data) return;
+    if (loadedFonts.length) drawWheel();
+    else status.textContent = `โหลด ${customFont.name || "ฟอนต์"} ไม่สำเร็จ`;
+  }).catch(() => {
+    if (state.assets.customFont?.data === customFont.data) {
+      status.textContent = `โหลด ${customFont.name || "ฟอนต์"} ไม่สำเร็จ`;
+    }
+  });
+}
+
 function applyVisualSettings() {
+  applyCustomFont();
   const root = document.documentElement;
   root.style.setProperty("--primary", state.settings.primary);
   root.style.setProperty("--secondary", state.settings.secondary);
@@ -559,13 +608,15 @@ function drawWheel() {
       context.fillStyle = state.settings.text;
       context.textAlign = "right";
       context.textBaseline = "middle";
-      const adaptive = Math.max(7, Math.min(state.settings.fontSize, (arc * radius * 0.72)));
+      const adaptive = Math.max(7, Math.min(state.settings.fontSize, arc * radius * 0.72));
       context.font = `${state.settings.fontWeight} ${adaptive}px ${state.settings.fontFamily}`;
       context.shadowColor = "rgba(0,0,0,.68)";
       context.shadowBlur = 4;
       const maxWidth = Math.max(24, radius * 0.28);
       const label = item.label.length > 14 ? `${item.label.slice(0, 12)}…` : item.label;
-      context.fillText(label, 0, 0, maxWidth);
+      const fittedSize = proportionalFontSize(adaptive, context.measureText(label).width, maxWidth);
+      context.font = `${state.settings.fontWeight} ${fittedSize}px ${state.settings.fontFamily}`;
+      context.fillText(label, 0, 0);
       context.restore();
     }
   }
@@ -967,10 +1018,13 @@ function exportHistory() {
   download("lucky-draw-history.csv", formatCSV(rows), "text/csv;charset=utf-8");
 }
 
-async function readFileAsDataURL(file, { audio = false } = {}) {
-  const limit = audio ? 12 * 1024 * 1024 : 8 * 1024 * 1024;
-  if (file.size > limit) throw new Error(`ไฟล์มีขนาดเกิน ${audio ? 12 : 8} MB`);
+async function readFileAsDataURL(file, { audio = false, font = false } = {}) {
+  const limit = font ? 6 * 1024 * 1024 : audio ? 12 * 1024 * 1024 : 8 * 1024 * 1024;
+  if (file.size > limit) throw new Error(`ไฟล์มีขนาดเกิน ${font ? 6 : audio ? 12 : 8} MB`);
   const extension = file.name.split(".").pop()?.toLowerCase();
+  if (font && !["woff2", "woff", "ttf", "otf"].includes(extension)) {
+    throw new Error("รองรับเฉพาะฟอนต์ WOFF2, WOFF, TTF และ OTF");
+  }
   const inferredType = {
     png: "image/png",
     jpg: "image/jpeg",
@@ -979,7 +1033,7 @@ async function readFileAsDataURL(file, { audio = false } = {}) {
     svg: "image/svg+xml",
   }[extension];
   const fileType = file.type || inferredType || "";
-  if (!audio && !["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(fileType)) {
+  if (!audio && !font && !["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(fileType)) {
     throw new Error("รองรับเฉพาะ PNG, JPEG, WebP และ SVG");
   }
   if (fileType === "image/svg+xml") {
@@ -994,6 +1048,28 @@ async function readFileAsDataURL(file, { audio = false } = {}) {
     reader.onerror = () => reject(new Error("อ่านไฟล์ไม่สำเร็จ"));
     reader.readAsDataURL(file);
   });
+}
+
+async function handleCustomFontUpload(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    const format = { woff2: "woff2", woff: "woff", ttf: "truetype", otf: "opentype" }[extension];
+    const data = await readFileAsDataURL(file, { font: true });
+    updateState(
+      (draft) => {
+        draft.assets.customFont = { data, name: file.name.slice(0, 120), format };
+        draft.settings.fontFamily = CUSTOM_FONT_FAMILY;
+      },
+      { controls: true },
+    );
+    showToast(`ติดตั้งฟอนต์ ${file.name} แล้ว`);
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    input.value = "";
+  }
 }
 
 async function handleAssetUpload(input, asset, options = {}) {
@@ -1354,6 +1430,17 @@ function bindControls() {
   $("#logoUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "logo"));
   $("#pointerUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "pointer"));
   $("#segmentImageUpload").addEventListener("change", (event) => handleAssetUpload(event.target, "segmentImage"));
+  $("#customFontUpload").addEventListener("change", (event) => handleCustomFontUpload(event.target));
+  $("#removeCustomFont").addEventListener("click", () => {
+    updateState(
+      (draft) => {
+        draft.assets.customFont = null;
+        if (draft.settings.fontFamily === CUSTOM_FONT_FAMILY) draft.settings.fontFamily = "system-ui";
+      },
+      { controls: true },
+    );
+    showToast("คืนฟอนต์มาตรฐานแล้ว");
+  });
   $("#winnerSoundUpload").addEventListener("change", (event) =>
     handleAssetUpload(event.target, "winnerSound", { audio: true }),
   );
@@ -1532,7 +1619,7 @@ function bindControls() {
 
 function mergeState(saved) {
   const fresh = defaultState();
-  return {
+  const merged = {
     ...fresh,
     ...saved,
     projectId: saved.projectId || fresh.projectId,
@@ -1546,6 +1633,10 @@ function mergeState(saved) {
       segmentMappings: { ...(saved.assets?.segmentMappings ?? {}) },
     },
   };
+  if (merged.settings.fontFamily === CUSTOM_FONT_FAMILY && !merged.assets.customFont?.data) {
+    merged.settings.fontFamily = "system-ui";
+  }
+  return merged;
 }
 
 async function initialize() {

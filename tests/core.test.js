@@ -9,6 +9,7 @@ import {
   normalizeAngle,
   parseDelimitedText,
   parseEntries,
+  proportionalFontSize,
   secureRandomIndex,
   spinEaseOut,
   targetRotation,
@@ -16,6 +17,12 @@ import {
   validateProjectPayload,
   winnerIndexAtPointer,
 } from "../src/core.js";
+
+test("fits wheel labels proportionally instead of stretching one axis", () => {
+  assert.equal(proportionalFontSize(40, 200, 100), 20);
+  assert.equal(proportionalFontSize(24, 80, 100), 24);
+  assert.equal(proportionalFontSize(24, 400, 20, 7), 7);
+});
 
 test("parses common delimiters and removes empty values", () => {
   assert.deepEqual(parseEntries("001, 002;\n003\t\n"), ["001", "002", "003"]);

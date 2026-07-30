@@ -1270,6 +1270,27 @@ output {
   cursor: pointer;
 }
 
+.upload-drop.compact-upload {
+  min-height: 50px;
+}
+
+.asset-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -4px 0 12px;
+}
+
+.asset-control-row small {
+  color: #80979d;
+  line-height: 1.45;
+}
+
+.asset-control-row .danger-outline {
+  flex: 0 0 auto;
+}
+
 .mapping-row {
   gap: 8px;
 }

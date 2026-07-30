@@ -263,10 +263,15 @@
             <div class="panel-section">
               <h3>ข้อความบนวงล้อ</h3>
               <div class="form-grid two">
-                <label>ฟอนต์<select id="fontFamily"><option value="system-ui">System UI</option><option value="Arial">Arial</option><option value="Tahoma">Tahoma</option><option value="Georgia">Georgia</option></select></label>
+                <label>ฟอนต์<select id="fontFamily"><option value="system-ui">System UI</option><option value="Arial">Arial</option><option value="Tahoma">Tahoma</option><option value="Georgia">Georgia</option><option id="customFontOption" value="LuckyDrawCustom" hidden>ฟอนต์ที่อัปโหลด</option></select></label>
                 <label>น้ำหนัก<select id="fontWeight"><option value="600">Semi Bold</option><option value="700">Bold</option><option value="800">Extra Bold</option></select></label>
-                <label>ขนาดตัวเลข <output id="fontSizeValue">16px</output><input id="fontSize" type="range" min="8" max="48" value="16" /></label>
+                <label>ขนาดตัวเลข (รักษาสัดส่วน) <output id="fontSizeValue">16px</output><input id="fontSize" type="range" min="8" max="48" value="16" /></label>
                 <label>ทิศทาง<select id="textDirection"><option value="radial">แนวรัศมี</option><option value="tangent">แนวสัมผัส</option></select></label>
+              </div>
+              <label class="upload-drop compact-upload">＋ เพิ่มฟอนต์ของคุณเอง<input id="customFontUpload" type="file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf,application/font-sfnt" /></label>
+              <div class="asset-control-row">
+                <small id="customFontStatus">รองรับ WOFF2, WOFF, TTF และ OTF ขนาดไม่เกิน 6 MB</small>
+                <button class="danger-outline" id="removeCustomFont" type="button" hidden>คืนฟอนต์มาตรฐาน</button>
               </div>
               <label class="toggle"><input id="showLabels" type="checkbox" checked /><span></span> แสดงหมายเลขบนวงล้อ</label>
             </div>

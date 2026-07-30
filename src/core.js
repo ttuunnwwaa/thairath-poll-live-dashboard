@@ -1,5 +1,17 @@
 export const TAU = Math.PI * 2;
 
+export function proportionalFontSize(requestedSize, measuredWidth, maxWidth, minimumSize = 7) {
+  const requested = Number(requestedSize);
+  const measured = Number(measuredWidth);
+  const available = Number(maxWidth);
+  const minimum = Number(minimumSize);
+  if (![requested, measured, available, minimum].every(Number.isFinite) || requested <= 0 || available <= 0) {
+    return Math.max(1, minimum || 1);
+  }
+  if (measured <= 0 || measured <= available) return Math.max(minimum, requested);
+  return Math.max(minimum, requested * (available / measured));
+}
+
 export function normalizeAngle(angle) {
   return ((angle % TAU) + TAU) % TAU;
 }
