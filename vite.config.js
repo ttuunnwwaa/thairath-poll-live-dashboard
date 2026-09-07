@@ -1,9 +1,14 @@
 import { defineConfig } from "vite";
-import { sites } from "./build/sites-vite-plugin.ts";
+
+function githubBase() {
+  if (process.env.VITE_BASE_PATH) return process.env.VITE_BASE_PATH;
+  if (!process.env.GITHUB_ACTIONS) return "/";
+  const repository = process.env.GITHUB_REPOSITORY?.split("/")[1];
+  return repository ? `/${repository}/` : "/";
+}
 
 export default defineConfig({
-  base: "./",
-  plugins: [sites()],
+  base: githubBase(),
   build: {
     target: "es2020",
     sourcemap: false,
