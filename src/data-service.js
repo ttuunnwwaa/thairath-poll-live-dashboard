@@ -4,7 +4,8 @@ import { normalizePoll } from "./poll-core.js";
 
 const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").trim();
 const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "").trim();
-const initialAuthParams = new URLSearchParams(location.hash.replace(/^#/, ""));
+const initialAuthHash = String(window.__THAIRATH_AUTH_HASH__ || location.hash);
+const initialAuthParams = new URLSearchParams(initialAuthHash.replace(/^#/, ""));
 
 export const authCallbackType = initialAuthParams.get("type");
 export const authCallbackError = initialAuthParams.get("error_code");
