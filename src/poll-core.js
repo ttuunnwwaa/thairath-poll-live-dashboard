@@ -89,6 +89,14 @@ export function normalizePresentation(value = {}) {
       gold: normalizeColor(value.colors?.gold, fallback.colors.gold),
       center: normalizeColor(value.colors?.center, fallback.colors.center),
       property: normalizeColor(value.colors?.property, fallback.colors.property),
+      chrome: normalizeColor(value.colors?.chrome, fallback.colors.chrome),
+      textPrimary: normalizeColor(value.colors?.textPrimary, fallback.colors.textPrimary),
+      textSecondary: normalizeColor(value.colors?.textSecondary, fallback.colors.textSecondary),
+    },
+    branding: {
+      showLogo: value.branding?.showLogo !== false,
+      logoUrl: String(value.branding?.logoUrl || "").trim(),
+      logoSize: clamp(value.branding?.logoSize ?? fallback.branding.logoSize, 32, 240),
     },
     screens: {
       gold: normalizeScreen(value.screens?.gold, fallback.screens.gold),

@@ -10,7 +10,7 @@ function escapeHtml(value) {
 
 function brandMarkup(compact = false) {
   return html`<div class="poll-brand ${compact ? "poll-brand--compact" : ""}">
-    <span class="brand-leaf" aria-hidden="true"></span><span class="brand-th">ไทยรัฐ</span>
+    <span class="brand-identity"><span class="brand-default-logo"><span class="brand-leaf" aria-hidden="true"></span><span class="brand-th">ไทยรัฐ</span></span><img class="brand-custom-logo" alt="โลโก้" hidden /></span>
     <span class="brand-divider"></span><span class="brand-poll">POLL</span>
     <span class="live-label"><i></i> LIVE</span>
   </div>`;
@@ -91,6 +91,10 @@ export function applyDisplayPresentation(root, poll) {
   root.style.setProperty("--color-gold", presentation.colors.gold);
   root.style.setProperty("--color-center", presentation.colors.center);
   root.style.setProperty("--color-property", presentation.colors.property);
+  root.style.setProperty("--color-chrome", presentation.colors.chrome);
+  root.style.setProperty("--color-text-primary", presentation.colors.textPrimary);
+  root.style.setProperty("--color-text-secondary", presentation.colors.textSecondary);
+  root.style.setProperty("--brand-logo-size", `${presentation.branding.logoSize}px`);
   for (const key of ["question", "asset", "percent", "votes", "secondary"]) {
     root.style.setProperty(`--font-${key}`, `${presentation.font[key]}px`);
   }
@@ -108,6 +112,15 @@ export function applyDisplayPresentation(root, poll) {
     artwork.style.width = `${config.artworkSize}%`;
     artwork.style.left = `${config.artworkX}%`;
     artwork.style.top = `${config.artworkY}%`;
+  });
+  root.querySelectorAll(".poll-brand").forEach((brand) => {
+    brand.classList.toggle("is-logo-hidden", !presentation.branding.showLogo);
+    const customLogo = brand.querySelector(".brand-custom-logo");
+    const defaultLogo = brand.querySelector(".brand-default-logo");
+    const hasCustomLogo = Boolean(presentation.branding.logoUrl);
+    customLogo.hidden = !hasCustomLogo;
+    defaultLogo.hidden = hasCustomLogo;
+    if (hasCustomLogo && customLogo.src !== presentation.branding.logoUrl) customLogo.src = presentation.branding.logoUrl;
   });
 }
 

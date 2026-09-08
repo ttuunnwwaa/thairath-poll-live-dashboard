@@ -41,6 +41,10 @@ test("preserves LED layout defaults when presentation is partial", () => {
   assert.equal(poll.presentation.screens.property.artworkY, 33);
   assert.equal(poll.presentation.font.question, 48);
   assert.equal(poll.presentation.colors.center, "#0b513b");
+  assert.equal(poll.presentation.colors.chrome, "#031f17");
+  assert.equal(poll.presentation.colors.textPrimary, "#ffffff");
+  assert.equal(poll.presentation.branding.showLogo, true);
+  assert.equal(poll.presentation.branding.logoSize, 82);
   assert.deepEqual(poll.presentation.screenAssignments, {
     left: "gold",
     center: "combined",
@@ -55,6 +59,13 @@ test("normalizes display background colors and rejects invalid values", () => {
   assert.equal(poll.presentation.colors.gold, "#abcdef");
   assert.equal(poll.presentation.colors.center, "#0b513b");
   assert.equal(poll.presentation.colors.property, "#123456");
+});
+
+test("normalizes display branding controls", () => {
+  const poll = normalizePoll({ presentation: { branding: { showLogo: false, logoUrl: " https://example.com/logo.png ", logoSize: 999 } } });
+  assert.equal(poll.presentation.branding.showLogo, false);
+  assert.equal(poll.presentation.branding.logoUrl, "https://example.com/logo.png");
+  assert.equal(poll.presentation.branding.logoSize, 240);
 });
 
 test("accepts safe custom content mapping for all three physical screens", () => {

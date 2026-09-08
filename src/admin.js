@@ -200,13 +200,29 @@ function adminMarkup(poll, user) {
             <div class="font-ranges">${rangeField("คำถาม", "presentation.font.question", 24, 96, presentation.font.question)}${rangeField("ชื่อสินทรัพย์", "presentation.font.asset", 20, 72, presentation.font.asset)}${rangeField("เปอร์เซ็นต์", "presentation.font.percent", 48, 180, presentation.font.percent)}${rangeField("จำนวนโหวต", "presentation.font.votes", 14, 48, presentation.font.votes)}${rangeField("ข้อความรอง", "presentation.font.secondary", 12, 36, presentation.font.secondary)}</div>
           </article>
           <article class="panel-card color-editor">
-            <div class="card-title"><div><span class="color-icon">◐</span><h3>สีพื้นหลังของเนื้อหา</h3></div><span>แสดงใต้ภาพพื้นหลัง</span></div>
+            <div class="card-title"><div><span class="color-icon">◐</span><h3>สีของหน้าจอและตัวอักษร</h3></div><span>ปรับแยกตามการใช้งาน</span></div>
             <div class="color-grid">
               ${colorField("ทองคำ", "gold", presentation.colors.gold, "ผลโพลตัวเลือกทองคำ")}
               ${colorField("จอกลาง", "center", presentation.colors.center, "คำถามและยอดโหวตรวม")}
               ${colorField("อสังหาริมทรัพย์", "property", presentation.colors.property, "ผลโพลตัวเลือกอสังหาฯ")}
+              ${colorField("พื้นหัว–ท้ายจอ", "chrome", presentation.colors.chrome, "พื้นที่สีเขียวเข้ม")}
+              ${colorField("ข้อความหลัก", "textPrimary", presentation.colors.textPrimary, "คำถาม ชื่อ และตัวเลข")}
+              ${colorField("ข้อความรอง", "textSecondary", presentation.colors.textSecondary, "ป้ายกำกับและรายละเอียด")}
             </div>
             <p class="color-help">หากใส่ภาพพื้นหลัง สีนี้จะเป็นสีรองด้านหลังภาพ โดยเฉพาะเมื่อเลือกการครอบภาพแบบ Contain</p>
+          </article>
+          <article class="panel-card brand-editor">
+            <div class="card-title"><div><span class="brand-editor-icon">T</span><h3>โลโก้มุมซ้ายบน</h3></div><span>ใช้ร่วมกันทุกจอ</span></div>
+            <div class="brand-editor-grid">
+              <div>
+                <label>URL โลโก้<input type="url" data-path="presentation.branding.logoUrl" value="${escapeHtml(presentation.branding.logoUrl)}" placeholder="https://…" /></label>
+                <label class="file-drop file-drop--small"><input type="file" accept="image/*" data-upload="logo" /><span>＋</span><b>อัปโหลดโลโก้</b><small>PNG โปร่งใสแนะนำ</small></label>
+              </div>
+              <div class="brand-controls">
+                <label class="toggle-field"><span><b>แสดงโลโก้บนจอ</b><small>ปิดได้โดยไม่ลบไฟล์โลโก้</small></span><input type="checkbox" data-path="presentation.branding.showLogo" ${presentation.branding.showLogo ? "checked" : ""} /></label>
+                ${rangeField("ขนาดโลโก้", "presentation.branding.logoSize", 32, 240, presentation.branding.logoSize)}
+              </div>
+            </div>
           </article>
           <div class="screen-editor-grid">${screenEditor("gold", "จอทองคำ", presentation.screens.gold)}${screenEditor("property", "จออสังหาริมทรัพย์", presentation.screens.property)}</div>
         </section>
@@ -344,7 +360,7 @@ export async function renderAdmin(root) {
     root.querySelectorAll("[data-path]").forEach((input) => {
       const listener = () => {
         const path = input.dataset.path;
-        const value = input.type === "number" || input.type === "range" ? Number(input.value) : input.value;
+        const value = input.type === "checkbox" ? input.checked : input.type === "number" || input.type === "range" ? Number(input.value) : input.value;
         applyDraftValue(path, value, input);
       };
       input.addEventListener(input.type === "range" ? "input" : "input", listener);
@@ -394,14 +410,17 @@ export async function renderAdmin(root) {
       const label = input.closest(".file-drop");
       label.classList.add("is-loading");
       try {
-        const url = await uploadPollAsset(file, input.dataset.screen, input.dataset.upload);
-        const field = input.dataset.upload === "background" ? "backgroundUrl" : "artworkUrl";
-        draft.presentation.screens[input.dataset.screen][field] = url;
-        const urlInput = root.querySelector(`[data-path="presentation.screens.${input.dataset.screen}.${field}"]`);
+        const isLogo = input.dataset.upload === "logo";
+        const url = await uploadPollAsset(file, isLogo ? "brand" : input.dataset.screen, input.dataset.upload);
+        const path = isLogo
+          ? "presentation.branding.logoUrl"
+          : `presentation.screens.${input.dataset.screen}.${input.dataset.upload === "background" ? "backgroundUrl" : "artworkUrl"}`;
+        setDeep(draft, path, url);
+        const urlInput = root.querySelector(`[data-path="${path}"]`);
         urlInput.value = url;
         updatePreviews();
         markDirty();
-        toast("อัปโหลดรูปเรียบร้อย");
+        toast(isLogo ? "อัปโหลดโลโก้เรียบร้อย" : "อัปโหลดรูปเรียบร้อย");
       } catch (error) { toast(error.message, "error"); }
       finally { label.classList.remove("is-loading"); input.value = ""; }
     }));

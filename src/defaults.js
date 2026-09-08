@@ -22,6 +22,14 @@ export const DEFAULT_PRESENTATION = Object.freeze({
     gold: "#8a5c12",
     center: "#0b513b",
     property: "#0d6348",
+    chrome: "#031f17",
+    textPrimary: "#ffffff",
+    textSecondary: "#b9cec5",
+  },
+  branding: {
+    showLogo: true,
+    logoUrl: "",
+    logoSize: 82,
   },
   screens: {
     gold: {
