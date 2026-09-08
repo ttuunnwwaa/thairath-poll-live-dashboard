@@ -1,5 +1,7 @@
 import { DEFAULT_PRESENTATION, clone, defaultPoll } from "./defaults.js";
 import {
+  authCallbackError,
+  authCallbackType,
   fetchHistory,
   fetchPoll,
   getCachedPoll,
@@ -225,10 +227,7 @@ function historyMarkup(history) {
 }
 
 export async function renderAdmin(root) {
-  const authParams = new URLSearchParams(location.hash.replace(/^#/, ""));
-  const authType = authParams.get("type");
-  const authError = authParams.get("error_code");
-  let passwordSetupPending = ["invite", "recovery"].includes(authType);
+  let passwordSetupPending = ["invite", "recovery"].includes(authCallbackType);
   let session = await getSession().catch(() => null);
   root.innerHTML = loginMarkup();
 
@@ -442,7 +441,7 @@ export async function renderAdmin(root) {
     });
   };
 
-  if (authError) showLogin(authError === "otp_expired" ? "ลิงก์คำเชิญหมดอายุหรือถูกใช้ไปแล้ว โปรดขอคำเชิญใหม่" : "ลิงก์คำเชิญไม่ถูกต้อง โปรดขอคำเชิญใหม่");
+  if (authCallbackError) showLogin(authCallbackError === "otp_expired" ? "ลิงก์คำเชิญหมดอายุหรือถูกใช้ไปแล้ว โปรดขอคำเชิญใหม่" : "ลิงก์คำเชิญไม่ถูกต้อง โปรดขอคำเชิญใหม่");
   else if (session?.user && passwordSetupPending) showPasswordSetup(session.user);
   else if (session?.user) await showDashboard(session.user);
   else showLogin();

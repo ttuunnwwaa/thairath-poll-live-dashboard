@@ -1,13 +1,12 @@
 import "./styles.css";
 import { renderAdmin } from "./admin.js";
-import { fetchPoll, getCachedPoll, isConfigured, subscribeToPoll } from "./data-service.js";
+import { authCallbackError, authCallbackType, fetchPoll, getCachedPoll, isConfigured, subscribeToPoll } from "./data-service.js";
 import { updateDisplay } from "./display-view.js";
 
 const root = document.getElementById("app");
 
 function resolveRoute() {
-  const authParams = new URLSearchParams(location.hash.replace(/^#/, ""));
-  if (["invite", "recovery"].includes(authParams.get("type")) || authParams.has("error_code")) {
+  if (["invite", "recovery"].includes(authCallbackType) || authCallbackError) {
     return "/admin";
   }
   const redirected = new URLSearchParams(location.search).get("route");

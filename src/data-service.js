@@ -4,6 +4,10 @@ import { normalizePoll } from "./poll-core.js";
 
 const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").trim();
 const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "").trim();
+const initialAuthParams = new URLSearchParams(location.hash.replace(/^#/, ""));
+
+export const authCallbackType = initialAuthParams.get("type");
+export const authCallbackError = initialAuthParams.get("error_code");
 
 export const isConfigured = /^https:\/\/.+\.supabase\.co$/i.test(supabaseUrl) && supabaseAnonKey.length > 20;
 export const supabase = isConfigured
