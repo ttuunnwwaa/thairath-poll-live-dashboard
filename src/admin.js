@@ -10,6 +10,7 @@ import {
   savePoll,
   signIn,
   signOut,
+  updatePassword,
   uploadPollAsset,
 } from "./data-service.js";
 import { renderPreview } from "./display-view.js";
@@ -55,6 +56,24 @@ function loginMarkup(message = "") {
         `}
       </form>
       <a class="back-link" href="${baseLink("display")}">← ไปหน้าจอแสดงผล</a>
+    </section>
+  </main>`;
+}
+
+function passwordSetupMarkup(user, message = "") {
+  return html`<main class="auth-page">
+    <section class="auth-card">
+      <div class="auth-brand"><span class="brand-leaf"></span><strong>ไทยรัฐ</strong><i></i><b>POLL</b></div>
+      <p class="section-kicker">ADMIN INVITATION</p>
+      <h1>ตั้งรหัสผ่านผู้ดูแล</h1>
+      <p>บัญชี ${escapeHtml(user?.email || "")} ได้รับสิทธิ์ Admin แล้ว</p>
+      ${message ? `<div class="form-alert">${escapeHtml(message)}</div>` : ""}
+      <form id="password-setup-form">
+        <label>รหัสผ่านใหม่<input name="password" type="password" autocomplete="new-password" minlength="8" required placeholder="อย่างน้อย 8 ตัวอักษร" /></label>
+        <label>ยืนยันรหัสผ่าน<input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="กรอกรหัสผ่านอีกครั้ง" /></label>
+        <button class="button button--primary button--wide" type="submit">ตั้งรหัสผ่านและเข้าสู่ระบบ</button>
+      </form>
+      <p class="auth-footnote">ลิงก์คำเชิญใช้ได้ครั้งเดียว หากหมดอายุให้ผู้ดูแลส่งคำเชิญใหม่</p>
     </section>
   </main>`;
 }
@@ -206,6 +225,10 @@ function historyMarkup(history) {
 }
 
 export async function renderAdmin(root) {
+  const authParams = new URLSearchParams(location.hash.replace(/^#/, ""));
+  const authType = authParams.get("type");
+  const authError = authParams.get("error_code");
+  let passwordSetupPending = ["invite", "recovery"].includes(authType);
   let session = await getSession().catch(() => null);
   root.innerHTML = loginMarkup();
 
@@ -393,9 +416,41 @@ export async function renderAdmin(root) {
     window.onbeforeunload = () => dirty ? "มีการเปลี่ยนแปลงที่ยังไม่บันทึก" : undefined;
   };
 
-  if (session?.user) await showDashboard(session.user);
+  const showPasswordSetup = (user, message = "") => {
+    root.innerHTML = passwordSetupMarkup(user, message);
+    const form = root.querySelector("#password-setup-form");
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const password = String(formData.get("password") || "");
+      const confirmPassword = String(formData.get("confirmPassword") || "");
+      if (password.length < 8) return showPasswordSetup(user, "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร");
+      if (password !== confirmPassword) return showPasswordSetup(user, "รหัสผ่านทั้งสองช่องไม่ตรงกัน");
+      const button = form.querySelector("button");
+      button.disabled = true;
+      button.textContent = "กำลังตั้งรหัสผ่าน…";
+      try {
+        passwordSetupPending = false;
+        const result = await updatePassword(password);
+        history.replaceState(null, "", baseLink("admin"));
+        await showDashboard(result.user || user);
+        toast("ตั้งรหัสผ่านเรียบร้อยแล้ว");
+      } catch (error) {
+        passwordSetupPending = true;
+        showPasswordSetup(user, error.message);
+      }
+    });
+  };
+
+  if (authError) showLogin(authError === "otp_expired" ? "ลิงก์คำเชิญหมดอายุหรือถูกใช้ไปแล้ว โปรดขอคำเชิญใหม่" : "ลิงก์คำเชิญไม่ถูกต้อง โปรดขอคำเชิญใหม่");
+  else if (session?.user && passwordSetupPending) showPasswordSetup(session.user);
+  else if (session?.user) await showDashboard(session.user);
   else showLogin();
-  return onAuthChange((nextSession) => {
+  return onAuthChange((nextSession, event) => {
+    if (nextSession && (event === "PASSWORD_RECOVERY" || passwordSetupPending)) {
+      showPasswordSetup(nextSession.user);
+      return;
+    }
     if (!nextSession && isConfigured) showLogin();
   });
 }

@@ -52,7 +52,7 @@ export async function getSession() {
 
 export function onAuthChange(callback) {
   if (!supabase) return () => {};
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
+  const { data } = supabase.auth.onAuthStateChange((event, session) => callback(session, event));
   return () => data.subscription.unsubscribe();
 }
 
@@ -68,6 +68,13 @@ export async function signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   }
+}
+
+export async function updatePassword(password) {
+  if (!supabase) throw new Error("การตั้งรหัสผ่านใช้ได้เฉพาะเมื่อเชื่อมต่อ Supabase");
+  const { data, error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+  return data;
 }
 
 function getDemoHistory() {

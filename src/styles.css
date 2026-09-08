@@ -103,6 +103,7 @@ a { color: inherit; text-decoration: none; }
 .auth-brand b { color: #69d3a6; letter-spacing: .12em; }
 .auth-card h1 { margin: 0; font-size: 32px; }
 .auth-card > p:not(.section-kicker) { margin: 9px 0 28px; color: #9eb5ac; }
+.auth-card > .auth-footnote { margin: 18px 0 0; font-size: 12px; line-height: 1.6; }
 .auth-card form { display: grid; gap: 18px; }
 .auth-card label, .panel-card label, .screen-editor label { display: grid; gap: 7px; color: #486159; font-size: 13px; font-weight: 600; }
 .auth-card label { color: #b8c9c2; }

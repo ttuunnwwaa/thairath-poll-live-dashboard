@@ -6,6 +6,10 @@ import { updateDisplay } from "./display-view.js";
 const root = document.getElementById("app");
 
 function resolveRoute() {
+  const authParams = new URLSearchParams(location.hash.replace(/^#/, ""));
+  if (["invite", "recovery"].includes(authParams.get("type")) || authParams.has("error_code")) {
+    return "/admin";
+  }
   const redirected = new URLSearchParams(location.search).get("route");
   if (redirected) {
     const routePath = redirected.startsWith("/") ? redirected : `/${redirected}`;

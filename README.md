@@ -48,8 +48,11 @@ SQL ชุดนี้จะสร้าง:
 
 ### สร้างผู้ดูแล
 
-1. ไปที่ **Authentication → Users → Add user** แล้วสร้าง Email/Password
-2. กลับไปที่ SQL Editor และรันคำสั่งด้านล่าง โดยเปลี่ยนอีเมลให้ตรงกับผู้ใช้
+1. ไปที่ **Authentication → URL Configuration** และตั้ง Site URL เป็น URL รากของ GitHub Pages เช่น `https://USERNAME.github.io/REPOSITORY/`
+2. เพิ่ม Redirect URL เป็น `https://USERNAME.github.io/REPOSITORY/**`
+3. ไปที่ **Authentication → Users → Add user → Send invitation**
+4. ผู้ใช้เปิดอีเมลคำเชิญ แล้วตั้งรหัสผ่านใหม่บนหน้า Admin
+5. กลับไปที่ SQL Editor และรันคำสั่งด้านล่าง โดยเปลี่ยนอีเมลให้ตรงกับผู้ใช้
 
 ```sql
 update auth.users
@@ -196,6 +199,7 @@ supabase/schema.sql  Schema, seed, trigger, RLS, Storage policies
 ## Troubleshooting
 
 - **Login ได้แต่เข้า Admin ไม่ได้:** ตรวจ `raw_app_meta_data.role` แล้ว Sign out/in ใหม่
+- **คำเชิญเปิด localhost หรือขึ้น otp_expired:** ตั้ง Auth Site URL/Redirect URL ให้เป็น GitHub Pages แล้วส่งคำเชิญใหม่ ลิงก์เดิมใช้ซ้ำไม่ได้
 - **อ่านข้อมูลได้แต่บันทึกไม่ได้:** ผู้ใช้ไม่มี role `admin` หรือ RLS SQL ยังรันไม่ครบ
 - **รูปอัปโหลดไม่ได้:** ตรวจ bucket/policy และชนิดไฟล์ต้องเป็น PNG, JPG หรือ WebP ไม่เกิน 8 MB
 - **Realtime ไม่เปลี่ยน:** ตรวจว่า table `polls` อยู่ใน `supabase_realtime` publication และ Project ไม่ถูก pause
