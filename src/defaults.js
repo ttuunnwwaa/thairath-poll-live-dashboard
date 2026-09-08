@@ -18,6 +18,11 @@ export const DEFAULT_PRESENTATION = Object.freeze({
     votes: 22,
     secondary: 18,
   },
+  colors: {
+    gold: "#8a5c12",
+    center: "#0b513b",
+    property: "#0d6348",
+  },
   screens: {
     gold: {
       backgroundUrl: "",

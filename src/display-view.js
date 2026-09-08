@@ -88,12 +88,16 @@ export function applyDisplayPresentation(root, poll) {
   const { presentation } = poll;
   setFont(presentation);
   root.style.setProperty("--poll-font", `'${presentation.font.name.replace(/["']/g, "")}', 'Noto Sans Thai', sans-serif`);
+  root.style.setProperty("--color-gold", presentation.colors.gold);
+  root.style.setProperty("--color-center", presentation.colors.center);
+  root.style.setProperty("--color-property", presentation.colors.property);
   for (const key of ["question", "asset", "percent", "votes", "secondary"]) {
     root.style.setProperty(`--font-${key}`, `${presentation.font[key]}px`);
   }
   root.querySelectorAll("[data-screen]").forEach((screen) => {
     const config = presentation.screens[screen.dataset.screen];
     const background = screen.querySelector(".screen-background");
+    background.style.backgroundColor = presentation.colors[screen.dataset.screen];
     background.style.backgroundImage = config.backgroundUrl ? `url("${config.backgroundUrl.replace(/["\\]/g, "")}")` : "";
     background.style.backgroundSize = config.backgroundScale === 100 ? config.backgroundFit : `${config.backgroundScale}% auto`;
     background.style.backgroundPosition = `${config.backgroundX}% ${config.backgroundY}%`;

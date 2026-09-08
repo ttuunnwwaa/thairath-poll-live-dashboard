@@ -100,6 +100,7 @@ insert into public.polls (
       "votes": 22,
       "secondary": 18
     },
+    "colors": {"gold": "#8a5c12", "center": "#0b513b", "property": "#0d6348"},
     "screens": {
       "gold": {
         "backgroundUrl": "", "backgroundFit": "cover", "backgroundX": 50,

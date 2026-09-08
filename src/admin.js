@@ -102,6 +102,14 @@ function rangeField(label, path, min, max, value, unit = "px") {
   return html`<label class="range-field"><span>${label}<output data-output="${path}">${value}${unit}</output></span><input type="range" min="${min}" max="${max}" value="${value}" data-path="${path}" /></label>`;
 }
 
+function colorField(label, key, value, detail) {
+  const path = `presentation.colors.${key}`;
+  return html`<label class="color-field">
+    <span>${label}<small>${detail}</small></span>
+    <div><input type="color" data-path="${path}" value="${value}" aria-label="เลือก${label}" /><input class="color-hex" data-color-text="${path}" value="${value.toUpperCase()}" maxlength="7" spellcheck="false" aria-label="ค่าสี ${label}" /></div>
+  </label>`;
+}
+
 function screenEditor(key, title, config) {
   return html`<article class="screen-editor" data-editor-screen="${key}">
     <div class="card-title"><div><span class="asset-dot asset-dot--${key}"></span><h3>${title}</h3></div><span>512 × 896</span></div>
@@ -190,6 +198,15 @@ function adminMarkup(poll, user) {
             <div class="card-title"><div><span class="font-icon">Aa</span><h3>ฟอนต์และขนาดตัวอักษร</h3></div><span>Google Fonts</span></div>
             <div class="font-source-grid"><label>ชื่อฟอนต์<input data-path="presentation.font.name" value="${escapeHtml(presentation.font.name)}" placeholder="Noto Sans Thai" /></label><label>Google Fonts URL หรือชื่อฟอนต์<input data-path="presentation.font.url" value="${escapeHtml(presentation.font.url)}" placeholder="https://fonts.googleapis.com/…" /></label></div>
             <div class="font-ranges">${rangeField("คำถาม", "presentation.font.question", 24, 96, presentation.font.question)}${rangeField("ชื่อสินทรัพย์", "presentation.font.asset", 20, 72, presentation.font.asset)}${rangeField("เปอร์เซ็นต์", "presentation.font.percent", 48, 180, presentation.font.percent)}${rangeField("จำนวนโหวต", "presentation.font.votes", 14, 48, presentation.font.votes)}${rangeField("ข้อความรอง", "presentation.font.secondary", 12, 36, presentation.font.secondary)}</div>
+          </article>
+          <article class="panel-card color-editor">
+            <div class="card-title"><div><span class="color-icon">◐</span><h3>สีพื้นหลังของเนื้อหา</h3></div><span>แสดงใต้ภาพพื้นหลัง</span></div>
+            <div class="color-grid">
+              ${colorField("ทองคำ", "gold", presentation.colors.gold, "ผลโพลตัวเลือกทองคำ")}
+              ${colorField("จอกลาง", "center", presentation.colors.center, "คำถามและยอดโหวตรวม")}
+              ${colorField("อสังหาริมทรัพย์", "property", presentation.colors.property, "ผลโพลตัวเลือกอสังหาฯ")}
+            </div>
+            <p class="color-help">หากใส่ภาพพื้นหลัง สีนี้จะเป็นสีรองด้านหลังภาพ โดยเฉพาะเมื่อเลือกการครอบภาพแบบ Contain</p>
           </article>
           <div class="screen-editor-grid">${screenEditor("gold", "จอทองคำ", presentation.screens.gold)}${screenEditor("property", "จออสังหาริมทรัพย์", presentation.screens.property)}</div>
         </section>
@@ -311,20 +328,40 @@ export async function renderAdmin(root) {
     updatePreviews();
     loadHistory();
 
+    const applyDraftValue = (path, value, input = null) => {
+      setDeep(draft, path, value);
+      const output = root.querySelector(`[data-output="${path}"]`);
+      if (output && input) output.textContent = `${input.value}${path.includes("font.") ? "px" : "%"}`;
+      if (input?.type === "color") {
+        const textInput = root.querySelector(`[data-color-text="${path}"]`);
+        if (textInput) textInput.value = input.value.toUpperCase();
+      }
+      updateSummary();
+      updatePreviews();
+      markDirty();
+    };
+
     root.querySelectorAll("[data-path]").forEach((input) => {
       const listener = () => {
         const path = input.dataset.path;
         const value = input.type === "number" || input.type === "range" ? Number(input.value) : input.value;
-        setDeep(draft, path, value);
-        const output = root.querySelector(`[data-output="${path}"]`);
-        if (output) output.textContent = `${input.value}${path.includes("font.") ? "px" : "%"}`;
-        updateSummary();
-        updatePreviews();
-        markDirty();
+        applyDraftValue(path, value, input);
       };
       input.addEventListener(input.type === "range" ? "input" : "input", listener);
       if (input.tagName === "SELECT") input.addEventListener("change", listener);
     });
+
+    root.querySelectorAll("[data-color-text]").forEach((input) => input.addEventListener("input", () => {
+      const value = input.value.trim();
+      const valid = /^#[0-9a-f]{6}$/i.test(value);
+      input.setCustomValidity(valid || !value ? "" : "กรุณากรอกสีรูปแบบ #RRGGBB");
+      if (!valid) return;
+      const path = input.dataset.colorText;
+      const normalized = value.toLowerCase();
+      const picker = root.querySelector(`input[type="color"][data-path="${path}"]`);
+      if (picker) picker.value = normalized;
+      applyDraftValue(path, normalized);
+    }));
 
     root.querySelectorAll('[name="displayMode"]').forEach((input) => input.addEventListener("change", () => {
       draft.presentation.displayMode = input.value;

@@ -59,6 +59,11 @@ function normalizeScreen(value, fallback) {
   };
 }
 
+function normalizeColor(value, fallback) {
+  const color = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : fallback;
+}
+
 export function normalizePresentation(value = {}) {
   const fallback = clone(DEFAULT_PRESENTATION);
   const font = value.font || {};
@@ -79,6 +84,11 @@ export function normalizePresentation(value = {}) {
       percent: clamp(font.percent ?? fallback.font.percent, 48, 180),
       votes: clamp(font.votes ?? fallback.font.votes, 14, 48),
       secondary: clamp(font.secondary ?? fallback.font.secondary, 12, 36),
+    },
+    colors: {
+      gold: normalizeColor(value.colors?.gold, fallback.colors.gold),
+      center: normalizeColor(value.colors?.center, fallback.colors.center),
+      property: normalizeColor(value.colors?.property, fallback.colors.property),
     },
     screens: {
       gold: normalizeScreen(value.screens?.gold, fallback.screens.gold),
