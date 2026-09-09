@@ -18,10 +18,13 @@ create table if not exists public.polls (
   option_property text not null check (char_length(option_property) between 1 and 80),
   votes_gold bigint not null default 0 check (votes_gold >= 0),
   votes_property bigint not null default 0 check (votes_property >= 0),
+  options jsonb not null default '[]'::jsonb,
   presentation jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now(),
   updated_by uuid references auth.users(id) on delete set null
 );
+
+alter table public.polls add column if not exists options jsonb not null default '[]'::jsonb;
 
 create table if not exists public.poll_history (
   id bigint generated always as identity primary key,
@@ -135,6 +138,13 @@ select
 from public.polls
 where id = '00000000-0000-0000-0000-000000000001'
 on conflict (id) do nothing;
+
+update public.polls
+set options = jsonb_build_array(
+  jsonb_build_object('id', 'option-1', 'label', option_gold, 'votes', votes_gold, 'color', coalesce(presentation->'colors'->>'gold', '#8a5c12')),
+  jsonb_build_object('id', 'option-2', 'label', option_property, 'votes', votes_property, 'color', coalesce(presentation->'colors'->>'property', '#0d6348'))
+)
+where options = '[]'::jsonb;
 
 create table if not exists public.broadcast_state (
   id boolean primary key default true check (id),

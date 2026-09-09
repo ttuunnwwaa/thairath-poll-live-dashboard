@@ -6,6 +6,8 @@ export const POLL_ID = POLL_IDS[0];
 export const CACHE_KEY = "thairath-poll-latest-v1";
 export const DEMO_HISTORY_KEY = "thairath-poll-history-v1";
 export const BROADCAST_CACHE_KEY = "thairath-poll-broadcast-v1";
+export const MAX_POLL_OPTIONS = 6;
+export const DEFAULT_OPTION_COLORS = Object.freeze(["#8a5c12", "#0d6348", "#315c8a", "#7b3f83", "#a24d38", "#596331"]);
 
 export const DEFAULT_PRESENTATION = Object.freeze({
   displayMode: "combined",
@@ -68,13 +70,21 @@ export function clone(value) {
 
 export function defaultPoll(id = POLL_ID) {
   const isSecondPoll = id === POLL_IDS[1];
+  const optionGold = isSecondPoll ? "ตัวเลือกที่ 1" : "ทองคำ";
+  const optionProperty = isSecondPoll ? "ตัวเลือกที่ 2" : "อสังหาริมทรัพย์";
+  const votesGold = isSecondPoll ? 0 : 680;
+  const votesProperty = isSecondPoll ? 0 : 320;
   return {
     id,
     question: isSecondPoll ? "คำถามสำหรับโพลชุดที่ 2" : "คุณคิดว่าสินทรัพย์ไหนจะทำให้คุณรอดในอนาคต",
-    option_gold: isSecondPoll ? "ตัวเลือกที่ 1" : "ทองคำ",
-    option_property: isSecondPoll ? "ตัวเลือกที่ 2" : "อสังหาริมทรัพย์",
-    votes_gold: isSecondPoll ? 0 : 680,
-    votes_property: isSecondPoll ? 0 : 320,
+    option_gold: optionGold,
+    option_property: optionProperty,
+    votes_gold: votesGold,
+    votes_property: votesProperty,
+    options: [
+      { id: "option-1", label: optionGold, votes: votesGold, color: DEFAULT_OPTION_COLORS[0] },
+      { id: "option-2", label: optionProperty, votes: votesProperty, color: DEFAULT_OPTION_COLORS[1] },
+    ],
     presentation: clone(DEFAULT_PRESENTATION),
     updated_at: new Date().toISOString(),
     updated_by: null,

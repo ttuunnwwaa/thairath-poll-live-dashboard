@@ -1,4 +1,4 @@
-import { DEFAULT_PRESENTATION, POLL_IDS, clone, defaultPoll } from "./defaults.js";
+import { DEFAULT_OPTION_COLORS, DEFAULT_PRESENTATION, MAX_POLL_OPTIONS, POLL_IDS, clone, defaultPoll } from "./defaults.js";
 import {
   authCallbackError,
   authCallbackType,
@@ -88,17 +88,35 @@ const modeCards = html`
   <label class="mode-card"><input type="radio" name="displayMode" value="dual"><span class="mode-icon mode-icon--dual"><i></i><i></i></span><b>โหมดจอคู่</b><small>แยกสินทรัพย์ไปคนละจอ</small></label>
   <label class="mode-card"><input type="radio" name="displayMode" value="fullscreen"><span class="mode-icon mode-icon--full"><i></i></span><b>โหมดเต็มจอ</b><small>พื้นที่แนวตั้ง 512 × 896 px</small></label>`;
 
-const screenContentOptions = [
-  ["question", "คำถามอย่างเดียว"],
-  ["combined", "ผลรวมสองตัวเลือก"],
-  ["gold", "ทองคำพร้อมผลโพล"],
-  ["property", "อสังหาริมทรัพย์พร้อมผลโพล"],
-  ["total", "ยอดโหวตรวม"],
-];
-
-function screenContentSelect(position, label, size, value) {
-  const options = screenContentOptions.map(([key, text]) => `<option value="${key}" ${value === key ? "selected" : ""}>${text}</option>`).join("");
+function screenContentSelect(position, label, size, value, poll) {
+  const contentOptions = [
+    ["question", "คำถามอย่างเดียว"],
+    ["combined", "ผลรวมทุกตัวเลือก"],
+    ...poll.options.map((option, index) => [index === 0 ? "gold" : index === 1 ? "property" : `option:${option.id}`, `${option.label} พร้อมผลโพล`]),
+    ["total", "ยอดโหวตรวม"],
+  ];
+  const options = contentOptions.map(([key, text]) => `<option value="${key}" ${value === key ? "selected" : ""}>${escapeHtml(text)}</option>`).join("");
   return html`<label class="screen-map-item"><span><i class="screen-shape screen-shape--${position}"></i><b>${label}</b><small>${size}</small></span><select data-path="presentation.screenAssignments.${position}">${options}</select></label>`;
+}
+
+function optionEditorRows(poll) {
+  return poll.options.map((option, index) => html`<div class="option-input option-input--dynamic" data-option-row="${escapeHtml(option.id)}" style="--option-color:${escapeHtml(option.color)}">
+    <span class="option-number">${String(index + 1).padStart(2, "0")}</span>
+    <div>
+      <label>ชื่อตัวเลือก<input data-option-id="${escapeHtml(option.id)}" data-option-field="label" maxlength="80" value="${escapeHtml(option.label)}" /></label>
+      <label>จำนวนคะแนน<input data-option-id="${escapeHtml(option.id)}" data-option-field="votes" type="number" inputmode="numeric" min="0" step="1" value="${option.votes}" /></label>
+      <label class="option-color-label">สี<input data-option-id="${escapeHtml(option.id)}" data-option-field="color" type="color" value="${escapeHtml(option.color)}" aria-label="สีตัวเลือกที่ ${index + 1}" /></label>
+      <button class="option-remove" data-remove-option="${escapeHtml(option.id)}" type="button" ${poll.options.length <= 2 ? "disabled" : ""} aria-label="ลบ${escapeHtml(option.label)}">×</button>
+    </div>
+  </div>`).join("");
+}
+
+function summaryOptionsMarkup(poll) {
+  const stats = pollStats(poll);
+  return stats.options.map((option) => html`<div class="summary-option" style="--option-color:${escapeHtml(option.color)}">
+    <div class="summary-row"><div><i></i><span>${escapeHtml(option.label)}</span></div><strong>${formatPercent(option.percent)}%</strong></div>
+    <div class="summary-meter"><i style="width:${option.percent}%"></i></div>
+  </div>`).join("");
 }
 
 function rangeField(label, path, min, max, value, unit = "px") {
@@ -180,16 +198,13 @@ function adminMarkup(poll, user, broadcastState) {
           <div class="editor-grid">
             <article class="panel-card poll-editor-card">
               <label>คำถามโพล<textarea data-path="question" rows="3" maxlength="240">${escapeHtml(poll.question)}</textarea><small><span id="question-count">${poll.question.length}</span>/240 ตัวอักษร</small></label>
-              <div class="option-input option-input--gold"><span class="option-number">01</span><div><label>ชื่อตัวเลือก<input data-path="option_gold" maxlength="80" value="${escapeHtml(poll.option_gold)}" /></label><label>จำนวนคะแนน<input data-path="votes_gold" type="number" inputmode="numeric" min="0" step="1" value="${poll.votes_gold}" /></label></div></div>
-              <div class="option-input option-input--property"><span class="option-number">02</span><div><label>ชื่อตัวเลือก<input data-path="option_property" maxlength="80" value="${escapeHtml(poll.option_property)}" /></label><label>จำนวนคะแนน<input data-path="votes_property" type="number" inputmode="numeric" min="0" step="1" value="${poll.votes_property}" /></label></div></div>
+              <div class="option-list" id="option-list">${optionEditorRows(poll)}</div>
+              <button class="button button--ghost add-option-button" id="add-option" type="button" ${poll.options.length >= MAX_POLL_OPTIONS ? "disabled" : ""}>＋ เพิ่มตัวเลือก <small>${poll.options.length}/${MAX_POLL_OPTIONS}</small></button>
             </article>
             <article class="panel-card summary-card">
               <p class="section-kicker">LIVE CALCULATION</p><h3>สรุปผลอัตโนมัติ</h3>
               <div class="summary-total"><span>ยอดโหวตรวม</span><strong id="summary-total">${formatNumber(stats.total)}</strong><small>คะแนน</small></div>
-              <div class="summary-row summary-row--gold"><div><i></i><span id="summary-label-gold">${escapeHtml(poll.option_gold)}</span></div><strong><span id="summary-percent-gold">${formatPercent(stats.goldPercent)}</span>%</strong></div>
-              <div class="summary-meter"><i id="summary-meter-gold" style="width:${stats.goldPercent}%"></i></div>
-              <div class="summary-row summary-row--property"><div><i></i><span id="summary-label-property">${escapeHtml(poll.option_property)}</span></div><strong><span id="summary-percent-property">${formatPercent(stats.propertyPercent)}</span>%</strong></div>
-              <div class="summary-meter summary-meter--property"><i id="summary-meter-property" style="width:${stats.propertyPercent}%"></i></div>
+              <div id="summary-options">${summaryOptionsMarkup(poll)}</div>
             </article>
           </div>
         </section>
@@ -200,9 +215,9 @@ function adminMarkup(poll, user, broadcastState) {
           <article class="screen-mapping-card">
             <div class="mapping-heading"><div><h3>กำหนดเนื้อหาแต่ละจอ</h3><span>เปลี่ยนได้อิสระโดยไม่ต้องสลับ URL ที่ตั้งไว้กับ LED processor</span></div><div class="mapping-presets"><button type="button" data-screen-preset="results">ผลโพล 3 จอ</button><button type="button" data-screen-preset="question">จอกลางเป็นคำถาม</button><button type="button" data-screen-preset="total">จอกลางเป็นยอดรวม</button></div></div>
             <div class="screen-map-grid">
-              ${screenContentSelect("left", "จอซ้าย", "512 × 896", presentation.screenAssignments.left)}
-              ${screenContentSelect("center", "จอกลาง", "1530 × 896", presentation.screenAssignments.center)}
-              ${screenContentSelect("right", "จอขวา", "512 × 896", presentation.screenAssignments.right)}
+              ${screenContentSelect("left", "จอซ้าย", "512 × 896", presentation.screenAssignments.left, poll)}
+              ${screenContentSelect("center", "จอกลาง", "1530 × 896", presentation.screenAssignments.center, poll)}
+              ${screenContentSelect("right", "จอขวา", "512 × 896", presentation.screenAssignments.right, poll)}
             </div>
           </article>
           <div class="preview-heading"><div><h3>ตัวอย่างสดทั้ง 3 จอ</h3><span>แสดงตาม Screen Mapping และเปลี่ยนทันทีขณะปรับข้อมูล</span></div><div class="preview-tabs"><button type="button" data-preview-tab="combined" class="active">จอกลาง</button><button type="button" data-preview-tab="gold">จอซ้าย</button><button type="button" data-preview-tab="property">จอขวา</button></div></div>
@@ -274,7 +289,7 @@ function historyMarkup(history) {
     const nextStats = pollStats(nextPoll);
     return html`<article class="history-item">
       <div class="history-meta"><span class="history-dot"></span><div><strong>${formatThaiDate(entry.changed_at)}</strong><small>${escapeHtml(entry.changed_by_email || "Admin")}</small></div></div>
-      <div class="history-change"><div><span>ค่าเดิม</span><p>${escapeHtml(oldPoll.question)}</p><small>${escapeHtml(oldPoll.option_gold)} ${formatNumber(oldStats.gold)} · ${escapeHtml(oldPoll.option_property)} ${formatNumber(oldStats.property)}</small></div><b>→</b><div><span>ค่าใหม่</span><p>${escapeHtml(nextPoll.question)}</p><small>${escapeHtml(nextPoll.option_gold)} ${formatNumber(nextStats.gold)} · ${escapeHtml(nextPoll.option_property)} ${formatNumber(nextStats.property)}</small></div></div>
+      <div class="history-change"><div><span>ค่าเดิม</span><p>${escapeHtml(oldPoll.question)}</p><small>${oldStats.options.map((option) => `${escapeHtml(option.label)} ${formatNumber(option.votes)}`).join(" · ")}</small></div><b>→</b><div><span>ค่าใหม่</span><p>${escapeHtml(nextPoll.question)}</p><small>${nextStats.options.map((option) => `${escapeHtml(option.label)} ${formatNumber(option.votes)}`).join(" · ")}</small></div></div>
       <button class="button button--restore" type="button" data-restore-id="${entry.id}">↺ คืนค่าเดิม</button>
     </article>`;
   }).join("");
@@ -330,12 +345,7 @@ export async function renderAdmin(root) {
     const updateSummary = () => {
       const stats = pollStats(draft);
       root.querySelector("#summary-total").textContent = formatNumber(stats.total);
-      root.querySelector("#summary-label-gold").textContent = draft.option_gold;
-      root.querySelector("#summary-label-property").textContent = draft.option_property;
-      root.querySelector("#summary-percent-gold").textContent = formatPercent(stats.goldPercent);
-      root.querySelector("#summary-percent-property").textContent = formatPercent(stats.propertyPercent);
-      root.querySelector("#summary-meter-gold").style.width = `${stats.goldPercent}%`;
-      root.querySelector("#summary-meter-property").style.width = `${stats.propertyPercent}%`;
+      root.querySelector("#summary-options").innerHTML = summaryOptionsMarkup(draft);
       root.querySelector("#question-count").textContent = draft.question.length;
     };
 
@@ -414,6 +424,8 @@ export async function renderAdmin(root) {
 
     const applyDraftValue = (path, value, input = null) => {
       setDeep(draft, path, value);
+      if (path === "presentation.colors.gold") draft.options[0].color = value;
+      if (path === "presentation.colors.property") draft.options[1].color = value;
       const output = root.querySelector(`[data-output="${path}"]`);
       if (output && input) output.textContent = `${input.value}${path.includes("font.") ? "px" : "%"}`;
       if (input?.type === "color") {
@@ -433,6 +445,44 @@ export async function renderAdmin(root) {
       };
       input.addEventListener(input.type === "range" ? "input" : "input", listener);
       if (input.tagName === "SELECT") input.addEventListener("change", listener);
+    });
+
+    root.querySelectorAll("[data-option-field]").forEach((input) => input.addEventListener("input", () => {
+      const optionIndex = draft.options.findIndex((option) => option.id === input.dataset.optionId);
+      if (optionIndex < 0) return;
+      const field = input.dataset.optionField;
+      draft.options[optionIndex][field] = field === "votes" ? Number(input.value) : input.value;
+      if (field === "color" && optionIndex < 2) draft.presentation.colors[optionIndex === 0 ? "gold" : "property"] = input.value;
+      draft.option_gold = draft.options[0].label;
+      draft.option_property = draft.options[1].label;
+      draft.votes_gold = Number(draft.options[0].votes) || 0;
+      draft.votes_property = Number(draft.options[1].votes) || 0;
+      updateSummary();
+      updatePreviews();
+      markDirty();
+    }));
+
+    root.querySelector("#add-option").addEventListener("click", () => {
+      if (draft.options.length >= MAX_POLL_OPTIONS) return;
+      const index = draft.options.length;
+      draft.options.push({
+        id: `option-${Date.now().toString(36)}`,
+        label: `ตัวเลือกที่ ${index + 1}`,
+        votes: 0,
+        color: DEFAULT_OPTION_COLORS[index],
+      });
+      showDashboard(user, draft, true, draft.id).then(() => toast("เพิ่มตัวเลือกแล้ว กรุณากรอกชื่อและคะแนน"));
+    });
+
+    root.querySelector("#option-list").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-remove-option]");
+      if (!button || draft.options.length <= 2) return;
+      const removedId = button.dataset.removeOption;
+      draft.options = draft.options.filter((option) => option.id !== removedId);
+      for (const [position, content] of Object.entries(draft.presentation.screenAssignments)) {
+        if (content === `option:${removedId}`) draft.presentation.screenAssignments[position] = position === "left" ? "gold" : position === "right" ? "property" : "combined";
+      }
+      showDashboard(user, draft, true, draft.id).then(() => toast("ลบตัวเลือกแล้ว การเปลี่ยนแปลงยังไม่ขึ้นจอจนกว่าจะบันทึก"));
     });
 
     root.querySelectorAll("[data-color-text]").forEach((input) => input.addEventListener("input", () => {

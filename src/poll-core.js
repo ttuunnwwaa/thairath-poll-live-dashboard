@@ -1,4 +1,12 @@
-import { DEFAULT_PRESENTATION, POLL_IDS, clone, defaultBroadcastState, defaultPoll } from "./defaults.js";
+import {
+  DEFAULT_OPTION_COLORS,
+  DEFAULT_PRESENTATION,
+  MAX_POLL_OPTIONS,
+  POLL_IDS,
+  clone,
+  defaultBroadcastState,
+  defaultPoll,
+} from "./defaults.js";
 
 export function clamp(value, min, max) {
   const number = Number(value);
@@ -6,16 +14,29 @@ export function clamp(value, min, max) {
 }
 
 export function pollStats(poll) {
-  const gold = Math.max(0, Math.trunc(Number(poll?.votes_gold) || 0));
-  const property = Math.max(0, Math.trunc(Number(poll?.votes_property) || 0));
-  const total = gold + property;
-  const goldPercent = total ? (gold / total) * 100 : 0;
+  const source = Array.isArray(poll?.options) && poll.options.length
+    ? poll.options
+    : [
+        { id: "option-1", label: poll?.option_gold || "", votes: poll?.votes_gold },
+        { id: "option-2", label: poll?.option_property || "", votes: poll?.votes_property },
+      ];
+  const options = source.map((option, index) => ({
+    ...option,
+    votes: Math.max(0, Math.trunc(Number(option?.votes) || 0)),
+    index,
+  }));
+  const total = options.reduce((sum, option) => sum + option.votes, 0);
+  options.forEach((option) => { option.percent = total ? (option.votes / total) * 100 : 0; });
+  const gold = options[0]?.votes || 0;
+  const property = options[1]?.votes || 0;
+  const goldPercent = options[0]?.percent || 0;
   return {
+    options,
     gold,
     property,
     total,
     goldPercent,
-    propertyPercent: total ? 100 - goldPercent : 0,
+    propertyPercent: options[1]?.percent || 0,
   };
 }
 
@@ -67,14 +88,15 @@ function normalizeColor(value, fallback) {
 export function normalizePresentation(value = {}) {
   const fallback = clone(DEFAULT_PRESENTATION);
   const font = value.font || {};
-  const allowedContent = ["question", "combined", "gold", "property", "total"];
+  const allowedContent = (content) => ["question", "combined", "gold", "property", "total"].includes(content)
+    || /^option:[a-z0-9-]{1,48}$/i.test(String(content || ""));
   const assignment = value.screenAssignments || {};
   return {
     displayMode: ["combined", "dual", "fullscreen"].includes(value.displayMode) ? value.displayMode : fallback.displayMode,
     screenAssignments: {
-      left: allowedContent.includes(assignment.left) ? assignment.left : fallback.screenAssignments.left,
-      center: allowedContent.includes(assignment.center) ? assignment.center : fallback.screenAssignments.center,
-      right: allowedContent.includes(assignment.right) ? assignment.right : fallback.screenAssignments.right,
+      left: allowedContent(assignment.left) ? assignment.left : fallback.screenAssignments.left,
+      center: allowedContent(assignment.center) ? assignment.center : fallback.screenAssignments.center,
+      right: allowedContent(assignment.right) ? assignment.right : fallback.screenAssignments.right,
     },
     font: {
       name: String(font.name || fallback.font.name).trim(),
@@ -108,14 +130,34 @@ export function normalizePresentation(value = {}) {
 export function normalizePoll(value = {}) {
   const id = POLL_IDS.includes(value.id) ? value.id : POLL_IDS[0];
   const fallback = defaultPoll(id);
+  const presentation = normalizePresentation(value.presentation);
+  const legacyOptions = [
+    { id: "option-1", label: value.option_gold || fallback.option_gold, votes: value.votes_gold ?? fallback.votes_gold, color: presentation.colors.gold },
+    { id: "option-2", label: value.option_property || fallback.option_property, votes: value.votes_property ?? fallback.votes_property, color: presentation.colors.property },
+  ];
+  const rawOptions = Array.isArray(value.options) && value.options.length >= 2 ? value.options : legacyOptions;
+  const usedIds = new Set();
+  const options = rawOptions.slice(0, MAX_POLL_OPTIONS).map((option, index) => {
+    const candidate = String(option?.id || `option-${index + 1}`).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 48) || `option-${index + 1}`;
+    const optionId = usedIds.has(candidate) ? `option-${index + 1}` : candidate;
+    usedIds.add(optionId);
+    const color = String(option?.color || DEFAULT_OPTION_COLORS[index] || presentation.colors.center).trim();
+    return {
+      id: optionId,
+      label: String(option?.label || `ตัวเลือกที่ ${index + 1}`).trim().slice(0, 80),
+      votes: Math.max(0, Math.trunc(Number(option?.votes) || 0)),
+      color: /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_OPTION_COLORS[index],
+    };
+  });
   return {
     id,
     question: String(value.question || fallback.question).trim().slice(0, 240),
-    option_gold: String(value.option_gold || fallback.option_gold).trim().slice(0, 80),
-    option_property: String(value.option_property || fallback.option_property).trim().slice(0, 80),
-    votes_gold: Math.max(0, Math.trunc(Number(value.votes_gold) || 0)),
-    votes_property: Math.max(0, Math.trunc(Number(value.votes_property) || 0)),
-    presentation: normalizePresentation(value.presentation),
+    option_gold: options[0].label,
+    option_property: options[1].label,
+    votes_gold: options[0].votes,
+    votes_property: options[1].votes,
+    options,
+    presentation,
     updated_at: value.updated_at || fallback.updated_at,
     updated_by: value.updated_by || null,
   };
@@ -134,14 +176,15 @@ export function normalizeBroadcastState(value = {}) {
 
 export function validatePoll(poll) {
   if (!poll.question.trim()) throw new Error("กรุณากรอกคำถาม");
-  if (!poll.option_gold.trim() || !poll.option_property.trim()) throw new Error("กรุณากรอกชื่อตัวเลือกทั้งสอง");
-  if (![poll.votes_gold, poll.votes_property].every((value) => Number.isInteger(Number(value)) && Number(value) >= 0)) {
+  if (!Array.isArray(poll.options) || poll.options.length < 2) throw new Error("ต้องมีตัวเลือกอย่างน้อย 2 ตัวเลือก");
+  if (poll.options.some((option) => !option.label.trim())) throw new Error("กรุณากรอกชื่อทุกตัวเลือก");
+  if (!poll.options.every((option) => Number.isInteger(Number(option.votes)) && Number(option.votes) >= 0)) {
     throw new Error("คะแนนต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป");
   }
   return true;
 }
 
 export function hasMeaningfulChange(before, after) {
-  const fields = ["question", "option_gold", "option_property", "votes_gold", "votes_property", "presentation"];
+  const fields = ["question", "option_gold", "option_property", "votes_gold", "votes_property", "options", "presentation"];
   return fields.some((field) => JSON.stringify(before?.[field]) !== JSON.stringify(after?.[field]));
 }

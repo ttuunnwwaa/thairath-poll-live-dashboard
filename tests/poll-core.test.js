@@ -21,13 +21,13 @@ test("calculates both percentages from one shared total", () => {
 });
 
 test("handles an empty poll without NaN", () => {
-  assert.deepEqual(pollStats({ votes_gold: 0, votes_property: 0 }), {
-    gold: 0,
-    property: 0,
-    total: 0,
-    goldPercent: 0,
-    propertyPercent: 0,
-  });
+  const stats = pollStats({ votes_gold: 0, votes_property: 0 });
+  assert.equal(stats.gold, 0);
+  assert.equal(stats.property, 0);
+  assert.equal(stats.total, 0);
+  assert.equal(stats.goldPercent, 0);
+  assert.equal(stats.propertyPercent, 0);
+  assert.equal(stats.options.every((option) => Number.isFinite(option.percent)), true);
 });
 
 test("normalizes negative and fractional votes", () => {
@@ -95,7 +95,9 @@ test("accepts a Google Fonts URL or creates one from a family name", () => {
 test("validates required poll content and non-negative integer votes", () => {
   assert.equal(validatePoll(defaultPoll()), true);
   assert.throws(() => validatePoll({ ...defaultPoll(), question: "" }), /คำถาม/);
-  assert.throws(() => validatePoll({ ...defaultPoll(), votes_gold: -1 }), /คะแนน/);
+  const invalidVotes = defaultPoll();
+  invalidVotes.options[0].votes = -1;
+  assert.throws(() => validatePoll(invalidVotes), /คะแนน/);
 });
 
 test("detects changes that must be saved", () => {
@@ -130,4 +132,18 @@ test("live phases override each screen mapping", () => {
   assert.equal(contentForScreen(poll, "combined", "question"), "question");
   assert.equal(contentForScreen(poll, "gold", "summary"), "total");
   assert.equal(contentForScreen(poll, "property", "results"), "property");
+});
+
+test("calculates percentages for added options", () => {
+  const poll = normalizePoll({
+    ...defaultPoll(),
+    options: [
+      { id: "option-1", label: "A", votes: 50, color: "#111111" },
+      { id: "option-2", label: "B", votes: 30, color: "#222222" },
+      { id: "option-3", label: "C", votes: 20, color: "#333333" },
+    ],
+  });
+  const stats = pollStats(poll);
+  assert.equal(stats.total, 100);
+  assert.deepEqual(stats.options.map((option) => option.percent), [50, 30, 20]);
 });

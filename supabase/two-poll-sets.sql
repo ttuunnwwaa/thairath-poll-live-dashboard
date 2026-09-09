@@ -1,6 +1,8 @@
 -- Upgrade an existing Thairath Poll installation to two poll sets.
 -- Safe to run more than once in Supabase Dashboard > SQL Editor.
 
+alter table public.polls add column if not exists options jsonb not null default '[]'::jsonb;
+
 insert into public.polls (
   id, question, option_gold, option_property, votes_gold, votes_property, presentation
 )
@@ -15,6 +17,13 @@ select
 from public.polls
 where id = '00000000-0000-0000-0000-000000000001'
 on conflict (id) do nothing;
+
+update public.polls
+set options = jsonb_build_array(
+  jsonb_build_object('id', 'option-1', 'label', option_gold, 'votes', votes_gold, 'color', coalesce(presentation->'colors'->>'gold', '#8a5c12')),
+  jsonb_build_object('id', 'option-2', 'label', option_property, 'votes', votes_property, 'color', coalesce(presentation->'colors'->>'property', '#0d6348'))
+)
+where options = '[]'::jsonb;
 
 create table if not exists public.broadcast_state (
   id boolean primary key default true check (id),
