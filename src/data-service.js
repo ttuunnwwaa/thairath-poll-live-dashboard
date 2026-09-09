@@ -1,6 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
-import { CACHE_KEY, DEMO_HISTORY_KEY, POLL_ID, defaultPoll } from "./defaults.js";
-import { normalizePoll } from "./poll-core.js";
+import {
+  BROADCAST_CACHE_KEY,
+  CACHE_KEY,
+  DEMO_HISTORY_KEY,
+  POLL_ID,
+  POLL_IDS,
+  defaultBroadcastState,
+  defaultPoll,
+} from "./defaults.js";
+import { normalizeBroadcastState, normalizePoll } from "./poll-core.js";
 
 const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").trim();
 const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "").trim();
@@ -26,26 +34,85 @@ function safeParse(value, fallback) {
   }
 }
 
-export function getCachedPoll() {
-  const cached = safeParse(localStorage.getItem(CACHE_KEY), null);
-  return cached ? normalizePoll(cached) : defaultPoll();
+function pollCacheKey(id) {
+  return `${CACHE_KEY}:${id}`;
+}
+
+export function getCachedPoll(id = POLL_ID) {
+  const current = localStorage.getItem(pollCacheKey(id));
+  const legacy = id === POLL_ID ? localStorage.getItem(CACHE_KEY) : null;
+  const cached = safeParse(current || legacy, null);
+  return cached ? normalizePoll({ ...cached, id }) : defaultPoll(id);
 }
 
 export function cachePoll(poll) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(normalizePoll(poll)));
+    const normalized = normalizePoll(poll);
+    localStorage.setItem(pollCacheKey(normalized.id), JSON.stringify(normalized));
+    if (normalized.id === POLL_ID) localStorage.setItem(CACHE_KEY, JSON.stringify(normalized));
   } catch {
     // The live result remains usable even if storage is unavailable.
   }
 }
 
-export async function fetchPoll() {
-  if (!supabase) return getCachedPoll();
-  const { data, error } = await supabase.from("polls").select("*").eq("id", POLL_ID).single();
+export async function fetchPoll(id = POLL_ID) {
+  if (!supabase) return getCachedPoll(id);
+  const { data, error } = await supabase.from("polls").select("*").eq("id", id).single();
   if (error) throw error;
   const poll = normalizePoll(data);
   cachePoll(poll);
   return poll;
+}
+
+export async function fetchPolls() {
+  if (!supabase) return POLL_IDS.map((id) => getCachedPoll(id));
+  const { data, error } = await supabase.from("polls").select("*").in("id", POLL_IDS);
+  if (error) throw error;
+  const byId = new Map((data || []).map((poll) => [poll.id, normalizePoll(poll)]));
+  const polls = POLL_IDS.map((id) => byId.get(id) || defaultPoll(id));
+  polls.forEach(cachePoll);
+  return polls;
+}
+
+export function getCachedBroadcastState() {
+  return normalizeBroadcastState(safeParse(localStorage.getItem(BROADCAST_CACHE_KEY), defaultBroadcastState()));
+}
+
+function cacheBroadcastState(state) {
+  const normalized = normalizeBroadcastState(state);
+  try { localStorage.setItem(BROADCAST_CACHE_KEY, JSON.stringify(normalized)); } catch { /* Keep the live view running. */ }
+  return normalized;
+}
+
+export async function fetchBroadcastState() {
+  if (!supabase) return getCachedBroadcastState();
+  const { data, error } = await supabase.from("broadcast_state").select("*").eq("id", true).single();
+  if (error) throw error;
+  return cacheBroadcastState(data);
+}
+
+export async function fetchLivePoll() {
+  const state = await fetchBroadcastState();
+  return { state, poll: await fetchPoll(state.active_poll_id) };
+}
+
+export async function setBroadcastState(changes) {
+  const next = normalizeBroadcastState({ ...getCachedBroadcastState(), ...changes });
+  if (!supabase) {
+    next.updated_at = new Date().toISOString();
+    cacheBroadcastState(next);
+    window.dispatchEvent(new CustomEvent("thairath-demo-broadcast", { detail: next }));
+    return next;
+  }
+  const { id: _id, updated_at: _updatedAt, updated_by: _updatedBy, ...payload } = next;
+  const { data, error } = await supabase
+    .from("broadcast_state")
+    .update(payload)
+    .eq("id", true)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return cacheBroadcastState(data);
 }
 
 export async function getSession() {
@@ -82,26 +149,26 @@ export async function updatePassword(password) {
   return data;
 }
 
-function getDemoHistory() {
-  return safeParse(localStorage.getItem(DEMO_HISTORY_KEY), []);
+function getDemoHistory(pollId = POLL_ID) {
+  return safeParse(localStorage.getItem(`${DEMO_HISTORY_KEY}:${pollId}`), []);
 }
 
 export async function savePoll(nextPoll, editor = "Demo Admin") {
   const payload = normalizePoll(nextPoll);
   if (!supabase) {
-    const previous = getCachedPoll();
+    const previous = getCachedPoll(payload.id);
     payload.updated_at = new Date().toISOString();
     payload.updated_by = editor;
-    const history = getDemoHistory();
+    const history = getDemoHistory(payload.id);
     history.unshift({
       id: crypto.randomUUID(),
-      poll_id: POLL_ID,
+      poll_id: payload.id,
       changed_at: payload.updated_at,
       changed_by_email: editor,
       old_data: previous,
       new_data: payload,
     });
-    localStorage.setItem(DEMO_HISTORY_KEY, JSON.stringify(history.slice(0, 50)));
+    localStorage.setItem(`${DEMO_HISTORY_KEY}:${payload.id}`, JSON.stringify(history.slice(0, 50)));
     cachePoll(payload);
     window.dispatchEvent(new CustomEvent("thairath-demo-update", { detail: payload }));
     return payload;
@@ -111,7 +178,7 @@ export async function savePoll(nextPoll, editor = "Demo Admin") {
   const { data, error } = await supabase
     .from("polls")
     .update(changes)
-    .eq("id", POLL_ID)
+    .eq("id", payload.id)
     .select("*")
     .single();
   if (error) throw error;
@@ -119,12 +186,12 @@ export async function savePoll(nextPoll, editor = "Demo Admin") {
   return normalizePoll(data);
 }
 
-export async function fetchHistory(limit = 20) {
-  if (!supabase) return getDemoHistory().slice(0, limit);
+export async function fetchHistory(pollId = POLL_ID, limit = 20) {
+  if (!supabase) return getDemoHistory(pollId).slice(0, limit);
   const { data, error } = await supabase
     .from("poll_history")
     .select("id,poll_id,changed_at,changed_by,changed_by_email,old_data,new_data")
-    .eq("poll_id", POLL_ID)
+    .eq("poll_id", pollId)
     .order("changed_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -133,7 +200,7 @@ export async function fetchHistory(limit = 20) {
 
 export async function restoreHistory(entry, editor) {
   if (!entry?.old_data) throw new Error("ไม่พบข้อมูลเดิมในรายการนี้");
-  return savePoll(normalizePoll({ ...entry.old_data, id: POLL_ID }), editor);
+  return savePoll(normalizePoll({ ...entry.old_data, id: entry.poll_id || POLL_ID }), editor);
 }
 
 export async function uploadPollAsset(file, screen, type) {
@@ -162,25 +229,49 @@ function readFileAsDataUrl(file) {
   });
 }
 
-export function subscribeToPoll({ onPoll, onStatus }) {
+export function subscribeToPoll({ onPoll, onBroadcast, onStatus }) {
   if (!supabase) {
-    const demoHandler = (event) => onPoll(normalizePoll(event.detail));
+    let activePollId = getCachedBroadcastState().active_poll_id;
+    const demoHandler = (event) => {
+      const poll = normalizePoll(event.detail);
+      if (poll.id === activePollId) onPoll(poll);
+    };
+    const broadcastHandler = (event) => {
+      const state = normalizeBroadcastState(event.detail);
+      activePollId = state.active_poll_id;
+      onBroadcast?.(state);
+      onPoll(getCachedPoll(activePollId));
+    };
     const storageHandler = (event) => {
-      if (event.key === CACHE_KEY && event.newValue) onPoll(normalizePoll(safeParse(event.newValue, defaultPoll())));
+      if (event.key === BROADCAST_CACHE_KEY && event.newValue) {
+        const state = normalizeBroadcastState(safeParse(event.newValue, defaultBroadcastState()));
+        activePollId = state.active_poll_id;
+        onBroadcast?.(state);
+        onPoll(getCachedPoll(activePollId));
+      } else if (event.key?.startsWith(`${CACHE_KEY}:`) && event.newValue) {
+        const poll = normalizePoll(safeParse(event.newValue, defaultPoll(activePollId)));
+        if (poll.id === activePollId) onPoll(poll);
+      }
     };
     window.addEventListener("thairath-demo-update", demoHandler);
+    window.addEventListener("thairath-demo-broadcast", broadcastHandler);
     window.addEventListener("storage", storageHandler);
     onStatus("demo");
     return () => {
       window.removeEventListener("thairath-demo-update", demoHandler);
+      window.removeEventListener("thairath-demo-broadcast", broadcastHandler);
       window.removeEventListener("storage", storageHandler);
     };
   }
 
   let retryTimer;
+  let activePollId = getCachedBroadcastState().active_poll_id;
   const refresh = async () => {
     try {
-      onPoll(await fetchPoll());
+      const state = await fetchBroadcastState();
+      activePollId = state.active_poll_id;
+      onBroadcast?.(state);
+      onPoll(await fetchPoll(activePollId));
       onStatus("connected");
     } catch {
       onStatus("reconnecting");
@@ -190,11 +281,21 @@ export function subscribeToPoll({ onPoll, onStatus }) {
     .channel(`poll-live-${crypto.randomUUID()}`)
     .on(
       "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "polls", filter: `id=eq.${POLL_ID}` },
+      { event: "UPDATE", schema: "public", table: "polls" },
       (payload) => {
         const poll = normalizePoll(payload.new);
         cachePoll(poll);
-        onPoll(poll);
+        if (poll.id === activePollId) onPoll(poll);
+      },
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "broadcast_state", filter: "id=eq.true" },
+      async (payload) => {
+        const state = cacheBroadcastState(payload.new);
+        activePollId = state.active_poll_id;
+        onBroadcast?.(state);
+        try { onPoll(await fetchPoll(activePollId)); } catch { onStatus("reconnecting"); }
       },
     )
     .subscribe((status) => {

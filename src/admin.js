@@ -1,15 +1,18 @@
-import { DEFAULT_PRESENTATION, clone, defaultPoll } from "./defaults.js";
+import { DEFAULT_PRESENTATION, POLL_IDS, clone, defaultPoll } from "./defaults.js";
 import {
   authCallbackError,
   authCallbackType,
+  fetchBroadcastState,
   fetchHistory,
-  fetchPoll,
+  fetchPolls,
+  getCachedBroadcastState,
   getCachedPoll,
   getSession,
   isConfigured,
   onAuthChange,
   restoreHistory,
   savePoll,
+  setBroadcastState,
   signIn,
   signOut,
   updatePassword,
@@ -139,9 +142,15 @@ function screenEditor(key, title, config) {
   </article>`;
 }
 
-function adminMarkup(poll, user) {
+function adminMarkup(poll, user, broadcastState) {
   const stats = pollStats(poll);
   const presentation = poll.presentation;
+  const pollNumber = POLL_IDS.indexOf(poll.id) + 1;
+  const activePollNumber = POLL_IDS.indexOf(broadcastState.active_poll_id) + 1;
+  const isActivePoll = poll.id === broadcastState.active_poll_id;
+  const pollTabs = POLL_IDS.map((id, index) => html`<button class="poll-set-tab ${poll.id === id ? "is-selected" : ""}" type="button" data-poll-tab="${id}">
+    <span>POLL ${String(index + 1).padStart(2, "0")}</span><strong>โพลชุดที่ ${index + 1}</strong>${broadcastState.active_poll_id === id ? '<em><i></i> LIVE</em>' : ""}
+  </button>`).join("");
   return html`<main class="admin-page">
     <header class="admin-topbar">
       <div class="admin-brand"><span class="brand-leaf"></span><strong>ไทยรัฐ</strong><i></i><b>POLL</b><em>ADMIN</em></div>
@@ -154,8 +163,20 @@ function adminMarkup(poll, user) {
         <div class="sidebar-links"><span>เปิดหน้าจอ</span><a href="${baseLink("display")}" target="_blank">จอรวม ↗</a><a href="${baseLink("display/gold")}" target="_blank">จอทองคำ ↗</a><a href="${baseLink("display/property")}" target="_blank">จออสังหาฯ ↗</a></div>
       </aside>
       <form class="admin-content" id="poll-form">
+        <section class="poll-set-bar">
+          <div class="poll-set-tabs">${pollTabs}</div>
+          <div class="broadcast-controls">
+            <div><span>กำลังออกจอ</span><strong>โพลชุดที่ ${activePollNumber}</strong></div>
+            <label>สถานะบนจอ<select id="live-phase" ${isActivePoll ? "" : "disabled"}>
+              <option value="question" ${broadcastState.phase === "question" ? "selected" : ""}>แสดงคำถาม</option>
+              <option value="results" ${broadcastState.phase === "results" ? "selected" : ""}>แสดงผลโพล</option>
+              <option value="summary" ${broadcastState.phase === "summary" ? "selected" : ""}>แสดงยอดรวม</option>
+            </select></label>
+            <button class="button ${isActivePoll ? "button--live" : "button--primary"}" id="activate-poll" type="button" ${isActivePoll ? "disabled" : ""}>${isActivePoll ? "● กำลังขึ้นจอ" : `นำโพลชุดที่ ${pollNumber} ขึ้นจอ →`}</button>
+          </div>
+        </section>
         <section class="admin-section" id="poll-section">
-          <div class="section-heading"><div><p class="section-kicker">POLL CONTENT</p><h2>ข้อมูลและคะแนน</h2><span>แก้ไขข้อความและจำนวนคะแนนที่แสดงบนทุกจอ</span></div><div class="updated-badge"><span>อัปเดตล่าสุด</span><time id="admin-updated-time">${formatThaiDate(poll.updated_at)}</time></div></div>
+          <div class="section-heading"><div><p class="section-kicker">POLL SET ${String(pollNumber).padStart(2, "0")}</p><h2>ข้อมูลและคะแนน</h2><span>${isActivePoll ? "ชุดนี้กำลังออกจอ การบันทึกจะอัปเดตหน้าจอทันที" : "แก้ไขและบันทึกเป็นแบบร่างได้โดยไม่กระทบจอที่กำลังใช้งาน"}</span></div><div class="updated-badge"><span>อัปเดตล่าสุด</span><time id="admin-updated-time">${formatThaiDate(poll.updated_at)}</time></div></div>
           <div class="editor-grid">
             <article class="panel-card poll-editor-card">
               <label>คำถามโพล<textarea data-path="question" rows="3" maxlength="240">${escapeHtml(poll.question)}</textarea><small><span id="question-count">${poll.question.length}</span>/240 ตัวอักษร</small></label>
@@ -231,7 +252,7 @@ function adminMarkup(poll, user) {
           <div class="section-heading"><div><p class="section-kicker">AUDIT LOG</p><h2>ประวัติการแก้ไข</h2><span>แสดงค่าเดิมและค่าใหม่ พร้อมคืนค่าก่อนแก้ไขได้ในคลิกเดียว</span></div><button class="button button--ghost" id="refresh-history" type="button">↻ โหลดใหม่</button></div>
           <div class="history-list" id="history-list"><div class="history-empty">กำลังโหลดประวัติ…</div></div>
         </section>
-        <div class="save-bar"><div><span id="dirty-indicator"><i></i> ยังไม่มีการเปลี่ยนแปลง</span><small>ทุกหน้าจอจะอัปเดตทันทีหลังบันทึก</small></div><button class="button button--primary" id="save-button" type="submit">บันทึกและเผยแพร่ <span>→</span></button></div>
+        <div class="save-bar"><div><span id="dirty-indicator"><i></i> ยังไม่มีการเปลี่ยนแปลง</span><small>${isActivePoll ? "ชุดนี้กำลังออกจอ ทุกหน้าจอจะอัปเดตทันทีหลังบันทึก" : "ชุดนี้ยังไม่ออกจอ บันทึกได้อย่างปลอดภัยในแบบร่าง"}</small></div><button class="button button--primary" id="save-button" type="submit">${isActivePoll ? "บันทึกและอัปเดตจอ" : "บันทึกแบบร่าง"} <span>→</span></button></div>
       </form>
     </div>
   </main>`;
@@ -282,19 +303,24 @@ export async function renderAdmin(root) {
     });
   };
 
-  const showDashboard = async (user, initialDraft = null, startDirty = false) => {
+  const showDashboard = async (user, initialDraft = null, startDirty = false, selectedPollId = null) => {
     if (isConfigured && user?.app_metadata?.role !== "admin") {
       showLogin("บัญชีนี้ยังไม่มีสิทธิ์ Admin โปรดตั้งค่า app_metadata.role เป็น admin ตาม README");
       return;
     }
-    let saved = initialDraft ? normalizePoll(initialDraft) : getCachedPoll();
+    let broadcastState = getCachedBroadcastState();
+    let polls = POLL_IDS.map((id) => getCachedPoll(id));
     if (!initialDraft) {
-      try { saved = await fetchPoll(); } catch { toast("ใช้ข้อมูลล่าสุดจากเบราว์เซอร์ชั่วคราว", "warning"); }
+      try {
+        [polls, broadcastState] = await Promise.all([fetchPolls(), fetchBroadcastState()]);
+      } catch { toast("ใช้ข้อมูลล่าสุดจากเบราว์เซอร์ชั่วคราว", "warning"); }
     }
+    const selectedId = selectedPollId || initialDraft?.id || broadcastState.active_poll_id;
+    let saved = initialDraft ? normalizePoll(initialDraft) : polls.find((poll) => poll.id === selectedId) || getCachedPoll(selectedId);
     let draft = normalizePoll(saved);
     let history = [];
     let dirty = startDirty;
-    root.innerHTML = adminMarkup(draft, user);
+    root.innerHTML = adminMarkup(draft, user, broadcastState);
     if (dirty) {
       const indicator = root.querySelector("#dirty-indicator");
       indicator.classList.add("is-dirty");
@@ -314,9 +340,10 @@ export async function renderAdmin(root) {
     };
 
     const updatePreviews = () => {
-      renderPreview(root.querySelector("#preview-combined"), draft, "combined");
-      renderPreview(root.querySelector("#preview-gold"), draft, "gold");
-      renderPreview(root.querySelector("#preview-property"), draft, "property");
+      const phase = draft.id === broadcastState.active_poll_id ? broadcastState.phase : "results";
+      renderPreview(root.querySelector("#preview-combined"), draft, "combined", phase);
+      renderPreview(root.querySelector("#preview-gold"), draft, "gold", phase);
+      renderPreview(root.querySelector("#preview-property"), draft, "property", phase);
     };
 
     const markDirty = () => {
@@ -330,7 +357,7 @@ export async function renderAdmin(root) {
       const list = root.querySelector("#history-list");
       list.innerHTML = '<div class="history-empty">กำลังโหลดประวัติ…</div>';
       try {
-        history = await fetchHistory(20);
+        history = await fetchHistory(draft.id, 20);
         list.innerHTML = historyMarkup(history);
       } catch (error) {
         list.innerHTML = `<div class="history-empty">โหลดประวัติไม่สำเร็จ: ${escapeHtml(error.message)}</div>`;
@@ -343,6 +370,47 @@ export async function renderAdmin(root) {
     updateSummary();
     updatePreviews();
     loadHistory();
+
+    root.querySelectorAll("[data-poll-tab]").forEach((button) => button.addEventListener("click", () => {
+      if (button.dataset.pollTab === draft.id) return;
+      if (dirty && !window.confirm("มีการแก้ไขที่ยังไม่บันทึก ต้องการเปลี่ยนชุดโพลและละทิ้งการแก้ไขหรือไม่?")) return;
+      showDashboard(user, null, false, button.dataset.pollTab);
+    }));
+
+    root.querySelector("#live-phase").addEventListener("change", async (event) => {
+      if (draft.id !== broadcastState.active_poll_id) return;
+      const select = event.currentTarget;
+      select.disabled = true;
+      try {
+        broadcastState = await setBroadcastState({ phase: select.value });
+        updatePreviews();
+        toast("เปลี่ยนสถานะบนจอแล้ว");
+      } catch (error) {
+        select.value = broadcastState.phase;
+        toast(error.message, "error");
+      } finally { select.disabled = false; }
+    });
+
+    root.querySelector("#activate-poll").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = "กำลังนำขึ้นจอ…";
+      try {
+        validatePoll(draft);
+        if (dirty) {
+          saved = await savePoll(draft, user?.email || "Demo Admin");
+          draft = normalizePoll(saved);
+          dirty = false;
+        }
+        broadcastState = await setBroadcastState({ active_poll_id: draft.id, phase: "question" });
+        toast("นำโพลชุดนี้ขึ้นจอแล้ว โดยเริ่มที่หน้าแสดงคำถาม");
+        await showDashboard(user, null, false, draft.id);
+      } catch (error) {
+        toast(error.message, "error");
+        button.disabled = false;
+        button.textContent = `นำโพลชุดที่ ${POLL_IDS.indexOf(draft.id) + 1} ขึ้นจอ →`;
+      }
+    });
 
     const applyDraftValue = (path, value, input = null) => {
       setDeep(draft, path, value);
@@ -429,7 +497,7 @@ export async function renderAdmin(root) {
       const currentMode = draft.presentation.displayMode;
       draft.presentation = clone(DEFAULT_PRESENTATION);
       draft.presentation.displayMode = currentMode;
-      showDashboard(user, draft, true).then(() => toast("คืนค่าการจัดวางเริ่มต้นแล้ว กรุณากดบันทึก"));
+      showDashboard(user, draft, true, draft.id).then(() => toast("คืนค่าการจัดวางเริ่มต้นแล้ว กรุณากดบันทึก"));
     });
 
     root.querySelector("#poll-form").addEventListener("submit", async (event) => {
@@ -445,12 +513,17 @@ export async function renderAdmin(root) {
         root.querySelector("#admin-updated-time").textContent = formatThaiDate(saved.updated_at);
         const indicator = root.querySelector("#dirty-indicator");
         indicator.classList.remove("is-dirty");
-        indicator.innerHTML = "<i></i> บันทึกและเผยแพร่แล้ว";
+        indicator.innerHTML = draft.id === broadcastState.active_poll_id
+          ? "<i></i> บันทึกและอัปเดตจอแล้ว"
+          : "<i></i> บันทึกแบบร่างแล้ว";
         updatePreviews();
         await loadHistory();
-        toast("บันทึกแล้ว ทุกหน้าจอกำลังอัปเดต");
+        toast(draft.id === broadcastState.active_poll_id ? "บันทึกแล้ว ทุกหน้าจอกำลังอัปเดต" : "บันทึกแบบร่างแล้ว โดยไม่กระทบจอสด");
       } catch (error) { toast(error.message, "error"); }
-      finally { button.disabled = false; button.innerHTML = "บันทึกและเผยแพร่ <span>→</span>"; }
+      finally {
+        button.disabled = false;
+        button.innerHTML = `${draft.id === broadcastState.active_poll_id ? "บันทึกและอัปเดตจอ" : "บันทึกแบบร่าง"} <span>→</span>`;
+      }
     });
 
     root.querySelector("#history-list").addEventListener("click", async (event) => {
@@ -461,8 +534,8 @@ export async function renderAdmin(root) {
       button.disabled = true;
       try {
         saved = await restoreHistory(entry, user?.email || "Demo Admin");
-        toast("คืนค่าข้อมูลเดิมและเผยแพร่แล้ว");
-        await showDashboard(user);
+        toast(draft.id === broadcastState.active_poll_id ? "คืนค่าข้อมูลเดิมและอัปเดตจอแล้ว" : "คืนค่าข้อมูลเดิมในแบบร่างแล้ว");
+        await showDashboard(user, null, false, draft.id);
       } catch (error) { toast(error.message, "error"); button.disabled = false; }
     });
     root.querySelector("#refresh-history").addEventListener("click", loadHistory);

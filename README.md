@@ -1,6 +1,6 @@
 # Thairath Poll — Live Event Dashboard
 
-เว็บแดชบอร์ดผลโหวตสำหรับงานขึ้นจอ ออกแบบตามผัง LED 3 จอของงาน และใช้ข้อมูลโพลแถวเดียวกันจาก Supabase ทุกหน้า คะแนนและงานภาพเปลี่ยนพร้อมกันผ่าน Supabase Realtime หลังผู้ดูแลกดบันทึก
+เว็บแดชบอร์ดผลโหวตสำหรับงานขึ้นจอ ออกแบบตามผัง LED 3 จอของงาน รองรับโพล 2 ชุดที่เตรียมล่วงหน้าได้ และมีตัวควบคุมกลางเลือกชุด/สถานะที่กำลังออกจอผ่าน Supabase Realtime
 
 ## URL และขนาดจอ
 
@@ -16,6 +16,8 @@
 ## ความสามารถ
 
 - Admin Authentication ด้วย Supabase Auth และตรวจ role จาก `app_metadata.role`
+- เตรียมโพล 2 ชุดแยกกัน สลับแก้ไขด้วยแท็บ และบันทึกชุดที่ยังไม่ออกจอเป็น Draft
+- ปุ่มนำโพลขึ้นจอ พร้อมสถานะการนำเสนอ 3 แบบ: คำถาม, ผลโพล และยอดรวม
 - แก้คำถาม ชื่อตัวเลือก และคะแนน พร้อมคำนวณยอดรวม/เปอร์เซ็นต์ทันที
 - เลือกโหมดจอรวม จอคู่ หรือเต็มจอ และดูตัวอย่างสดครบทั้ง 3 URL
 - Screen Mapping เลือกเนื้อหาของจอซ้าย/กลาง/ขวาแยกกัน: คำถาม, ผลรวม 2 ตัวเลือก, ตัวเลือกใดตัวเลือกหนึ่ง หรือยอดโหวตรวม
@@ -42,11 +44,14 @@
 
 SQL ชุดนี้จะสร้าง:
 
-- `public.polls` พร้อมข้อมูลตัวอย่างเริ่มต้น
+- `public.polls` พร้อมข้อมูลตัวอย่างโพล 2 ชุด
+- `public.broadcast_state` สำหรับระบุชุดโพลและสถานะที่กำลังออกจอ
 - `public.poll_history` และ trigger เก็บค่าเดิม/ค่าใหม่
 - RLS: บุคคลทั่วไปอ่านโพลได้ แต่แก้ไขได้เฉพาะ Admin
 - Storage bucket `poll-assets` พร้อม policy สำหรับอัปโหลด
-- เพิ่ม `polls` เข้า publication ของ Supabase Realtime
+- เพิ่ม `polls` และ `broadcast_state` เข้า publication ของ Supabase Realtime
+
+หากเคยติดตั้ง schema เวอร์ชันโพลชุดเดียวแล้ว ให้รันเฉพาะ [`supabase/two-poll-sets.sql`](./supabase/two-poll-sets.sql) เพื่ออัปเกรดได้ทันที โดยสคริปต์นี้รันซ้ำได้อย่างปลอดภัย
 
 ### สร้างผู้ดูแล
 
@@ -158,9 +163,11 @@ https://USERNAME.github.io/REPOSITORY/display/property
 
 1. เปิด URL ทั้งสามบนเครื่อง/Output ของ LED processor ตามจอจริง
 2. เปิด `/admin` บน Notebook ของผู้ควบคุมและล็อกอิน
-3. กรอกคะแนนหรือปรับภาพ ตรวจ live preview แล้วกด **บันทึกและเผยแพร่**
-4. ทุกจอจะรับ UPDATE เดียวกันผ่าน Realtime และเปลี่ยนตัวเลขอย่างนุ่มนวล
-5. หากกรอกผิด ไปที่ประวัติแล้วกด **คืนค่าเดิม**
+3. เลือกแท็บ **โพลชุดที่ 1** หรือ **โพลชุดที่ 2** แล้วกรอกคำถาม ตัวเลือก คะแนน และปรับภาพ
+4. ถ้าเป็นชุดที่ยังไม่ออกจอ กด **บันทึกแบบร่าง** ได้โดยจอสดไม่เปลี่ยน
+5. เมื่อพร้อม กด **นำโพลชุดนี้ขึ้นจอ** ระบบจะเริ่มด้วยหน้า “แสดงคำถาม”
+6. ใช้ตัวเลือก **สถานะบนจอ** เพื่อเปลี่ยนเป็น “แสดงผลโพล” หรือ “แสดงยอดรวม” ทุกจอจะเปลี่ยนพร้อมกันโดยใช้ URL เดิม
+7. หากกรอกผิด ไปที่ประวัติของโพลชุดนั้นแล้วกด **คืนค่าเดิม**
 
 การแก้ในฟอร์มยังไม่ขึ้นจอจริงจนกดบันทึก Live preview ใน Admin จะแสดง draft ที่ยังไม่บันทึกเพื่อให้ตรวจสอบก่อนเผยแพร่
 
@@ -175,7 +182,7 @@ https://USERNAME.github.io/REPOSITORY/display/property
 
 ## Security checklist
 
-- [x] เปิด RLS ทั้ง `polls` และ `poll_history`
+- [x] เปิด RLS ทั้ง `polls`, `poll_history` และ `broadcast_state`
 - [x] Anonymous อ่านได้เฉพาะข้อมูลโพล
 - [x] Authenticated ที่มี `app_metadata.role = admin` เท่านั้นจึง UPDATE ได้
 - [x] History เขียนด้วย database trigger ไม่รับ payload จาก Browser โดยตรง
@@ -195,6 +202,7 @@ src/
   poll-core.js       คำนวณ/validate/normalize ข้อมูล
   styles.css         Design system และ breakpoint จอ LED จริง
 supabase/schema.sql  Schema, seed, trigger, RLS, Storage policies
+supabase/two-poll-sets.sql  สคริปต์อัปเกรดฐานข้อมูลเดิมเป็นโพล 2 ชุด
 .github/workflows/   GitHub Pages deployment
 ```
 
@@ -204,6 +212,6 @@ supabase/schema.sql  Schema, seed, trigger, RLS, Storage policies
 - **คำเชิญเปิด localhost หรือขึ้น otp_expired:** ตั้ง Auth Site URL/Redirect URL ให้เป็น GitHub Pages แล้วส่งคำเชิญใหม่ ลิงก์เดิมใช้ซ้ำไม่ได้
 - **อ่านข้อมูลได้แต่บันทึกไม่ได้:** ผู้ใช้ไม่มี role `admin` หรือ RLS SQL ยังรันไม่ครบ
 - **รูปอัปโหลดไม่ได้:** ตรวจ bucket/policy และชนิดไฟล์ต้องเป็น PNG, JPG หรือ WebP ไม่เกิน 8 MB
-- **Realtime ไม่เปลี่ยน:** ตรวจว่า table `polls` อยู่ใน `supabase_realtime` publication และ Project ไม่ถูก pause
+- **Realtime ไม่เปลี่ยน:** ตรวจว่า table `polls` และ `broadcast_state` อยู่ใน `supabase_realtime` publication และ Project ไม่ถูก pause
 - **Refresh nested route แล้ว 404:** ใช้ workflow ในโปรเจกต์ซึ่งสร้าง `404.html` redirect ให้อัตโนมัติ
 - **จอมีขอบ:** ตั้ง Browser Fullscreen, Zoom 100%, ปิด toolbar และตรวจ output resolution ของ LED processor ให้ตรง 1530 × 896 หรือ 512 × 896

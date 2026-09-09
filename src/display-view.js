@@ -34,7 +34,9 @@ function optionMarkup(key, poll, compact = false) {
   </article>`;
 }
 
-export function contentForScreen(poll, physicalType) {
+export function contentForScreen(poll, physicalType, phase = "results") {
+  if (phase === "question") return "question";
+  if (phase === "summary") return "total";
   const position = physicalType === "combined" ? "center" : physicalType === "gold" ? "left" : "right";
   const fallback = position === "center" ? "combined" : position === "left" ? "gold" : "property";
   return poll.presentation?.screenAssignments?.[position] || fallback;
@@ -54,11 +56,11 @@ function resultsMarkup(content, poll) {
   </article>`;
 }
 
-export function displayMarkup(poll, physicalType = "combined", { preview = false } = {}) {
+export function displayMarkup(poll, physicalType = "combined", { preview = false, phase = "results" } = {}) {
   const stats = pollStats(poll);
-  const content = contentForScreen(poll, physicalType);
+  const content = contentForScreen(poll, physicalType, phase);
   const isPhysicalCenter = physicalType === "combined";
-  return html`<main class="display-shell display-shell--${physicalType} display-content--${content} ${preview ? "is-preview" : ""}" data-content="${content}">
+  return html`<main class="display-shell display-shell--${physicalType} display-content--${content} ${preview ? "is-preview" : ""}" data-content="${content}" data-phase="${phase}">
     <header class="display-header">${brandMarkup(!isPhysicalCenter)}<p class="display-question">${escapeHtml(poll.question)}</p></header>
     <section class="display-results ${content === "combined" ? "display-results--combined" : "display-results--single"}">${resultsMarkup(content, poll)}</section>
     <footer class="display-footer">
@@ -152,17 +154,18 @@ export function setConnectionStatus(root, status) {
     ? "ข้อมูลล่าสุด" : status === "demo" ? "โหมดตัวอย่างในเครื่อง" : "กำลังเชื่อมต่อข้อมูลล่าสุด";
 }
 
-export function updateDisplay(root, poll, physicalType = "combined", { rebuild = false } = {}) {
+export function updateDisplay(root, poll, physicalType = "combined", { rebuild = false, phase = "results" } = {}) {
   const currentContent = root.querySelector(".display-shell")?.dataset.content;
-  const nextContent = contentForScreen(poll, physicalType);
+  const nextContent = contentForScreen(poll, physicalType, phase);
   if (rebuild || !currentContent || currentContent !== nextContent) {
     const status = root.querySelector(".connection-indicator")?.dataset.status;
-    root.innerHTML = displayMarkup(poll, physicalType);
+    root.innerHTML = displayMarkup(poll, physicalType, { phase });
     applyDisplayPresentation(root, poll);
     if (status) setConnectionStatus(root, status);
     return;
   }
   const stats = pollStats(poll);
+  root.querySelector(".display-shell").dataset.phase = phase;
   root.querySelector(".display-question").textContent = poll.question;
   const questionStage = root.querySelector(".question-stage h2");
   if (questionStage) questionStage.textContent = poll.question;
@@ -180,7 +183,7 @@ export function updateDisplay(root, poll, physicalType = "combined", { rebuild =
   applyDisplayPresentation(root, poll);
 }
 
-export function renderPreview(root, poll, physicalType) {
-  root.innerHTML = displayMarkup(poll, physicalType, { preview: true });
+export function renderPreview(root, poll, physicalType, phase = "results") {
+  root.innerHTML = displayMarkup(poll, physicalType, { preview: true, phase });
   applyDisplayPresentation(root, poll);
 }

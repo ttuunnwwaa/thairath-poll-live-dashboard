@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultPoll } from "../src/defaults.js";
+import { POLL_IDS, defaultPoll } from "../src/defaults.js";
+import { contentForScreen } from "../src/display-view.js";
 import {
   clamp,
   formatPercent,
   hasMeaningfulChange,
   normalizeFontUrl,
+  normalizeBroadcastState,
   normalizePoll,
   pollStats,
   validatePoll,
@@ -105,4 +107,27 @@ test("detects changes that must be saved", () => {
 
 test("formats Thai percentages to one decimal place", () => {
   assert.match(formatPercent(68), /68[,.]0|๖๘[,.]๐/);
+});
+
+test("keeps two poll sets independent", () => {
+  const first = defaultPoll(POLL_IDS[0]);
+  const second = defaultPoll(POLL_IDS[1]);
+  assert.notEqual(first.id, second.id);
+  assert.notEqual(first.question, second.question);
+  assert.equal(second.votes_gold, 0);
+  assert.equal(second.votes_property, 0);
+});
+
+test("normalizes the shared live broadcast state", () => {
+  const state = normalizeBroadcastState({ active_poll_id: POLL_IDS[1], phase: "question" });
+  assert.equal(state.active_poll_id, POLL_IDS[1]);
+  assert.equal(state.phase, "question");
+  assert.equal(normalizeBroadcastState({ phase: "invalid" }).phase, "results");
+});
+
+test("live phases override each screen mapping", () => {
+  const poll = defaultPoll(POLL_IDS[1]);
+  assert.equal(contentForScreen(poll, "combined", "question"), "question");
+  assert.equal(contentForScreen(poll, "gold", "summary"), "total");
+  assert.equal(contentForScreen(poll, "property", "results"), "property");
 });

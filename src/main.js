@@ -1,6 +1,14 @@
 import "./styles.css";
 import { renderAdmin } from "./admin.js";
-import { authCallbackError, authCallbackType, fetchPoll, getCachedPoll, isConfigured, subscribeToPoll } from "./data-service.js";
+import {
+  authCallbackError,
+  authCallbackType,
+  fetchLivePoll,
+  getCachedBroadcastState,
+  getCachedPoll,
+  isConfigured,
+  subscribeToPoll,
+} from "./data-service.js";
 import { updateDisplay } from "./display-view.js";
 
 const root = document.getElementById("app");
@@ -38,8 +46,9 @@ function setConnectionStatus(status) {
 }
 
 async function mountDisplay(type) {
-  let poll = getCachedPoll();
-  updateDisplay(root, poll, type, { rebuild: true });
+  let broadcastState = getCachedBroadcastState();
+  let poll = getCachedPoll(broadcastState.active_poll_id);
+  updateDisplay(root, poll, type, { rebuild: true, phase: broadcastState.phase });
   setConnectionStatus(isConfigured ? "loading" : "demo");
   root.addEventListener("click", (event) => {
     if (event.target.closest(".fullscreen-control")) fullscreen();
@@ -49,8 +58,10 @@ async function mountDisplay(type) {
   });
 
   try {
-    poll = await fetchPoll();
-    updateDisplay(root, poll, type);
+    const live = await fetchLivePoll();
+    broadcastState = live.state;
+    poll = live.poll;
+    updateDisplay(root, poll, type, { rebuild: true, phase: broadcastState.phase });
     setConnectionStatus(isConfigured ? "connected" : "demo");
   } catch {
     setConnectionStatus("reconnecting");
@@ -58,8 +69,14 @@ async function mountDisplay(type) {
 
   subscribeToPoll({
     onPoll(nextPoll) {
+      const rebuild = poll.id !== nextPoll.id;
       poll = nextPoll;
-      updateDisplay(root, poll, type);
+      updateDisplay(root, poll, type, { rebuild, phase: broadcastState.phase });
+    },
+    onBroadcast(nextState) {
+      const activePollChanged = broadcastState.active_poll_id !== nextState.active_poll_id;
+      broadcastState = nextState;
+      if (!activePollChanged) updateDisplay(root, poll, type, { phase: broadcastState.phase });
     },
     onStatus: setConnectionStatus,
   });

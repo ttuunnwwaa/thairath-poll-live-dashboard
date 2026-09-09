@@ -1,4 +1,4 @@
-import { DEFAULT_PRESENTATION, clone, defaultPoll } from "./defaults.js";
+import { DEFAULT_PRESENTATION, POLL_IDS, clone, defaultBroadcastState, defaultPoll } from "./defaults.js";
 
 export function clamp(value, min, max) {
   const number = Number(value);
@@ -106,15 +106,27 @@ export function normalizePresentation(value = {}) {
 }
 
 export function normalizePoll(value = {}) {
-  const fallback = defaultPoll();
+  const id = POLL_IDS.includes(value.id) ? value.id : POLL_IDS[0];
+  const fallback = defaultPoll(id);
   return {
-    id: value.id || fallback.id,
+    id,
     question: String(value.question || fallback.question).trim().slice(0, 240),
     option_gold: String(value.option_gold || fallback.option_gold).trim().slice(0, 80),
     option_property: String(value.option_property || fallback.option_property).trim().slice(0, 80),
     votes_gold: Math.max(0, Math.trunc(Number(value.votes_gold) || 0)),
     votes_property: Math.max(0, Math.trunc(Number(value.votes_property) || 0)),
     presentation: normalizePresentation(value.presentation),
+    updated_at: value.updated_at || fallback.updated_at,
+    updated_by: value.updated_by || null,
+  };
+}
+
+export function normalizeBroadcastState(value = {}) {
+  const fallback = defaultBroadcastState();
+  return {
+    id: true,
+    active_poll_id: POLL_IDS.includes(value.active_poll_id) ? value.active_poll_id : fallback.active_poll_id,
+    phase: ["question", "results", "summary"].includes(value.phase) ? value.phase : fallback.phase,
     updated_at: value.updated_at || fallback.updated_at,
     updated_by: value.updated_by || null,
   };

@@ -142,6 +142,35 @@ input:focus, textarea:focus, select:focus { border-color: #2bac7f; box-shadow: 0
 .sidebar-links > span { color: #5e7d71; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
 .sidebar-links a:hover { color: #72d8ad; }
 .admin-content { min-width: 0; padding: 34px clamp(24px, 4vw, 58px) 120px; }
+.poll-set-bar {
+  max-width: 1240px;
+  margin: 0 auto 34px;
+  border: 1px solid #d7e1dc;
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(18, 58, 44, .06);
+}
+.poll-set-tabs { display: flex; gap: 8px; }
+.poll-set-tab { min-width: 150px; border: 1px solid transparent; border-radius: 10px; padding: 10px 13px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; color: #6d7e76; background: #f3f6f4; text-align: left; }
+.poll-set-tab:hover { border-color: #b8ccc3; }
+.poll-set-tab.is-selected { border-color: #178c65; color: #123f31; background: #eaf7f1; box-shadow: inset 0 0 0 1px rgba(23,140,101,.08); }
+.poll-set-tab > span { grid-column: 1 / -1; color: #178c65; font: 700 9px/1.2 "IBM Plex Sans Thai", sans-serif; letter-spacing: .13em; }
+.poll-set-tab strong { font-size: 14px; }
+.poll-set-tab em { align-self: center; color: #117653; font: normal 700 9px/1 sans-serif; letter-spacing: .08em; }
+.poll-set-tab em i { width: 6px; height: 6px; margin-right: 3px; display: inline-block; border-radius: 50%; background: #28b77e; box-shadow: 0 0 0 4px rgba(40,183,126,.1); }
+.broadcast-controls { display: flex; align-items: center; gap: 12px; }
+.broadcast-controls > div { min-width: 95px; display: grid; }
+.broadcast-controls > div span, .broadcast-controls label { color: #82918a; font-size: 10px; font-weight: 650; }
+.broadcast-controls > div strong { color: #183d31; font-size: 14px; }
+.broadcast-controls label { min-width: 145px; display: grid; gap: 3px; }
+.broadcast-controls select { padding: 8px 30px 8px 10px; color: #284c40; font-size: 12px; }
+.button--live { color: #167a58; background: #e5f5ee; box-shadow: none; }
+.button--live:disabled { opacity: 1; cursor: default; }
 .admin-section { max-width: 1240px; margin: 0 auto 54px; scroll-margin-top: 95px; }
 .section-heading { margin-bottom: 20px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
 .section-heading h2 { margin: 0 0 5px; color: #162a24; font-size: 26px; font-weight: 650; }
@@ -502,6 +531,8 @@ body[data-route^="/display"] { overflow: hidden; background: #061912; }
   .history-item { grid-template-columns: 160px minmax(0, 1fr); }
   .history-item .button { grid-column: 2; justify-self: end; }
   .mapping-heading { align-items: flex-start; flex-direction: column; }
+  .poll-set-bar { align-items: flex-start; flex-direction: column; }
+  .broadcast-controls { width: 100%; }
 }
 
 @media (max-width: 760px) {
@@ -510,6 +541,11 @@ body[data-route^="/display"] { overflow: hidden; background: #061912; }
   .admin-layout { display: block; }
   .admin-sidebar { display: none; }
   .admin-content { padding: 24px 15px 116px; }
+  .poll-set-tabs { width: 100%; }
+  .poll-set-tab { min-width: 0; flex: 1; }
+  .broadcast-controls { align-items: stretch; flex-wrap: wrap; }
+  .broadcast-controls > div, .broadcast-controls label { flex: 1; }
+  .broadcast-controls .button { width: 100%; }
   .section-heading { align-items: flex-start; flex-direction: column; }
   .editor-grid, .screen-editor-grid, .mode-grid, .font-source-grid, .color-grid, .brand-editor-grid { grid-template-columns: 1fr; }
   .screen-map-grid { grid-template-columns: 1fr; }
