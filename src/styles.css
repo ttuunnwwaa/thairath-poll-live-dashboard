@@ -419,6 +419,17 @@ body[data-route^="/display"] { overflow: hidden; background: #061912; }
 .display-shell--gold .display-question, .display-shell--property .display-question { font-size: clamp(26px, calc(var(--font-question) * .82), 72px); }
 .display-shell--gold .display-results, .display-shell--property .display-results { display: block; }
 .display-results.has-many-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.display-shell--combined .display-results.option-grid--4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+.display-shell--combined .display-results.option-grid--4 .poll-option:nth-child(odd) { border-right: 1px solid rgba(255,255,255,.13); }
+.display-shell--combined .display-results.option-grid--4 .poll-option:nth-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.13); }
+.display-shell--combined .display-results.option-grid--4 .option-content { padding: clamp(18px, 2vw, 32px) clamp(24px, 3vw, 48px); }
+.display-shell--combined .display-results.option-grid--4 .option-kicker { margin-bottom: 3px; }
+.display-shell--combined .display-results.option-grid--4 .option-result { margin-top: auto; }
+.display-shell--combined .display-results.option-grid--4 .option-meter { margin-top: 12px; }
+.display-shell--combined .display-results.option-grid--4 .option-votes { margin-top: 6px; }
 .display-results.has-many-options .option-content { padding: clamp(16px, 2.2vw, 34px); }
 .display-results.has-many-options .option-name { font-size: clamp(20px, calc(var(--font-asset) * .75), 38px); }
 .display-results.has-many-options .option-result strong { font-size: clamp(42px, calc(var(--font-percent) * .68), 100px); }
@@ -597,6 +608,7 @@ body[data-route^="/display"] { overflow: hidden; background: #061912; }
   .display-shell--combined { grid-template-rows: 26% minmax(0, 1fr) 11%; }
   .display-shell--combined .display-results { flex-direction: column; }
   .display-shell--combined .display-results.has-many-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .display-shell--combined .display-results.option-grid--4 { grid-template-rows: repeat(2, minmax(0, 1fr)); }
   .display-shell--combined .option-content { padding: 18px 28px; }
   .display-shell--combined .option-result { margin-top: 12px; }
   .display-shell--combined .option-result strong { font-size: clamp(48px, calc(var(--font-percent) * .65), 100px); }

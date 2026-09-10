@@ -67,9 +67,10 @@ export function displayMarkup(poll, physicalType = "combined", { preview = false
   const stats = pollStats(poll);
   const content = contentForScreen(poll, physicalType, phase);
   const isPhysicalCenter = physicalType === "combined";
+  const optionGridClass = content === "combined" ? `option-grid--${poll.options.length}` : "";
   return html`<main class="display-shell display-shell--${physicalType} display-content--${content} ${preview ? "is-preview" : ""}" data-content="${content}" data-phase="${phase}">
     <header class="display-header">${brandMarkup(!isPhysicalCenter)}<p class="display-question">${escapeHtml(poll.question)}</p></header>
-    <section class="display-results ${content === "combined" ? "display-results--combined" : "display-results--single"} ${content === "combined" && poll.options.length > 2 ? "has-many-options" : ""}" data-option-count="${poll.options.length}">${resultsMarkup(content, poll, physicalType)}</section>
+    <section class="display-results ${content === "combined" ? "display-results--combined" : "display-results--single"} ${content === "combined" && poll.options.length > 2 ? "has-many-options" : ""} ${optionGridClass}" data-option-count="${poll.options.length}">${resultsMarkup(content, poll, physicalType)}</section>
     <footer class="display-footer">
       <div><span>ยอดโหวตรวม</span><strong class="animated-number" data-value="${stats.total}" data-format="number">${formatNumber(stats.total)}</strong><small>คะแนน</small></div>
       <div class="updated-copy"><span>อัปเดตล่าสุด</span><time>${formatThaiDate(poll.updated_at)}</time></div>
@@ -182,7 +183,11 @@ export function setConnectionStatus(root, status) {
 export function updateDisplay(root, poll, physicalType = "combined", { rebuild = false, phase = "results" } = {}) {
   const currentContent = root.querySelector(".display-shell")?.dataset.content;
   const nextContent = contentForScreen(poll, physicalType, phase);
-  if (rebuild || !currentContent || currentContent !== nextContent) {
+  const renderedOptionIds = [...root.querySelectorAll("[data-option-id]")].map((element) => element.dataset.optionId);
+  const nextOptionIds = nextContent === "combined" ? poll.options.map((option) => option.id) : renderedOptionIds;
+  const optionStructureChanged = nextContent === "combined"
+    && JSON.stringify(renderedOptionIds) !== JSON.stringify(nextOptionIds);
+  if (rebuild || !currentContent || currentContent !== nextContent || optionStructureChanged) {
     const status = root.querySelector(".connection-indicator")?.dataset.status;
     root.innerHTML = displayMarkup(poll, physicalType, { phase });
     applyDisplayPresentation(root, poll);

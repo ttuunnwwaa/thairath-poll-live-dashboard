@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { POLL_IDS, defaultPoll } from "../src/defaults.js";
-import { contentForScreen } from "../src/display-view.js";
+import { contentForScreen, displayMarkup } from "../src/display-view.js";
 import {
   broadcastStatePatch,
   clamp,
@@ -155,4 +155,19 @@ test("calculates percentages for added options", () => {
   const stats = pollStats(poll);
   assert.equal(stats.total, 100);
   assert.deepEqual(stats.options.map((option) => option.percent), [50, 30, 20]);
+});
+
+test("renders four combined options as a dedicated two-by-two grid", () => {
+  const poll = normalizePoll({
+    options: [
+      { id: "one", label: "หนึ่ง", votes: 40, color: "#8a5c12" },
+      { id: "two", label: "สอง", votes: 30, color: "#0d6348" },
+      { id: "three", label: "สาม", votes: 20, color: "#315c9b" },
+      { id: "four", label: "สี่", votes: 10, color: "#7d3f98" },
+    ],
+  });
+  const markup = displayMarkup(poll, "combined", { phase: "results" });
+  assert.match(markup, /option-grid--4/);
+  assert.match(markup, /data-option-count="4"/);
+  assert.equal((markup.match(/data-option-id=/g) || []).length, 4);
 });
