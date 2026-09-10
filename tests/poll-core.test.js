@@ -48,6 +48,7 @@ test("preserves LED layout defaults when presentation is partial", () => {
   assert.equal(poll.presentation.colors.textPrimary, "#ffffff");
   assert.equal(poll.presentation.branding.showLogo, true);
   assert.equal(poll.presentation.branding.logoSize, 82);
+  assert.equal(poll.presentation.animation.speed, 1);
   assert.deepEqual(poll.presentation.screenAssignments, {
     left: "gold",
     center: "combined",
@@ -84,6 +85,34 @@ test("normalizes display branding controls", () => {
   assert.equal(poll.presentation.branding.showLogo, false);
   assert.equal(poll.presentation.branding.logoUrl, "https://example.com/logo.png");
   assert.equal(poll.presentation.branding.logoSize, 240);
+});
+
+test("normalizes animation speed and per-option visual controls", () => {
+  const poll = normalizePoll({
+    presentation: { animation: { speed: 9 } },
+    options: [
+      {
+        id: "option-1",
+        label: "หนึ่ง",
+        votes: 1,
+        color: "#112233",
+        visual: {
+          backgroundUrl: " https://example.com/background.jpg ",
+          backgroundX: 120,
+          artworkUrl: "https://example.com/art.png",
+          artworkSize: 75,
+        },
+      },
+      { id: "option-2", label: "สอง", votes: 2, color: "#334455" },
+      { id: "option-3", label: "สาม", votes: 3, color: "#556677", visual: { artworkY: 18 } },
+    ],
+  });
+  assert.equal(poll.presentation.animation.speed, 3);
+  assert.equal(poll.options[0].visual.backgroundUrl, "https://example.com/background.jpg");
+  assert.equal(poll.options[0].visual.backgroundX, 100);
+  assert.equal(poll.options[0].visual.artworkSize, 75);
+  assert.equal(poll.options[2].visual.artworkY, 18);
+  assert.equal(poll.presentation.screens.gold.backgroundUrl, "https://example.com/background.jpg");
 });
 
 test("accepts safe custom content mapping for all three physical screens", () => {

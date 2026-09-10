@@ -120,6 +120,9 @@ export function normalizePresentation(value = {}) {
       logoUrl: String(value.branding?.logoUrl || "").trim(),
       logoSize: clamp(value.branding?.logoSize ?? fallback.branding.logoSize, 32, 240),
     },
+    animation: {
+      speed: clamp(value.animation?.speed ?? fallback.animation.speed, 0.25, 3),
+    },
     screens: {
       gold: normalizeScreen(value.screens?.gold, fallback.screens.gold),
       property: normalizeScreen(value.screens?.property, fallback.screens.property),
@@ -142,17 +145,25 @@ export function normalizePoll(value = {}) {
     const optionId = usedIds.has(candidate) ? `option-${index + 1}` : candidate;
     usedIds.add(optionId);
     const color = String(option?.color || DEFAULT_OPTION_COLORS[index] || presentation.colors.center).trim();
+    const visualFallback = index === 0
+      ? presentation.screens.gold
+      : index === 1
+        ? presentation.screens.property
+        : DEFAULT_PRESENTATION.screens.gold;
     return {
       id: optionId,
       label: String(option?.label || `ตัวเลือกที่ ${index + 1}`).trim().slice(0, 80),
       votes: Math.max(0, Math.trunc(Number(option?.votes) || 0)),
       color: /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_OPTION_COLORS[index],
+      visual: normalizeScreen(option?.visual, visualFallback),
     };
   });
   // Option colors are the single source of truth for result tiles. Keeping the
   // legacy presentation fields in sync also repairs older saved poll records.
   presentation.colors.gold = options[0].color;
   presentation.colors.property = options[1].color;
+  presentation.screens.gold = clone(options[0].visual);
+  presentation.screens.property = clone(options[1].visual);
   return {
     id,
     question: String(value.question || fallback.question).trim().slice(0, 240),

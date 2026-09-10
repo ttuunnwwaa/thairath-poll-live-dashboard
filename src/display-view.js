@@ -1,3 +1,4 @@
+import { DEFAULT_PRESENTATION } from "./defaults.js";
 import { formatNumber, formatPercent, formatThaiDate, normalizeFontUrl, pollStats } from "./poll-core.js";
 
 const html = String.raw;
@@ -107,14 +108,19 @@ export function applyDisplayPresentation(root, poll) {
   root.style.setProperty("--color-text-primary", presentation.colors.textPrimary);
   root.style.setProperty("--color-text-secondary", presentation.colors.textSecondary);
   root.style.setProperty("--brand-logo-size", `${presentation.branding.logoSize}px`);
+  root.style.setProperty("--animation-duration", `${Math.round(750 / presentation.animation.speed)}ms`);
   for (const key of ["question", "asset", "percent", "votes", "secondary"]) {
     root.style.setProperty(`--font-${key}`, `${presentation.font[key]}px`);
   }
-  root.querySelectorAll("[data-screen]").forEach((screen) => {
-    const config = presentation.screens[screen.dataset.screen];
+  root.querySelectorAll("[data-option-id]").forEach((screen) => {
     const displayedOption = poll.options.find((option) => option.id === screen.dataset.optionId);
+    if (!displayedOption) return;
+    const legacyConfig = screen.dataset.screen
+      ? presentation.screens[screen.dataset.screen]
+      : DEFAULT_PRESENTATION.screens.gold;
+    const config = displayedOption.visual || legacyConfig;
     const background = screen.querySelector(".screen-background");
-    background.style.backgroundColor = displayedOption?.color || presentation.colors[screen.dataset.screen];
+    background.style.backgroundColor = displayedOption.color;
     background.style.backgroundImage = config.backgroundUrl ? `url("${config.backgroundUrl.replace(/["\\]/g, "")}")` : "";
     background.style.backgroundSize = config.backgroundScale === 100 ? config.backgroundFit : `${config.backgroundScale}% auto`;
     background.style.backgroundPosition = `${config.backgroundX}% ${config.backgroundY}%`;
@@ -198,21 +204,24 @@ export function updateDisplay(root, poll, physicalType = "combined", { rebuild =
     return;
   }
   const stats = pollStats(poll);
+  const animationDuration = Math.round(650 / poll.presentation.animation.speed);
+  // Apply visual and motion variables before changing values so this update uses
+  // the newly selected animation speed immediately.
+  applyDisplayPresentation(root, poll);
   root.querySelector(".display-shell").dataset.phase = phase;
   root.querySelector(".display-question").textContent = poll.question;
   const questionStage = root.querySelector(".question-stage h2");
   if (questionStage) questionStage.textContent = poll.question;
   root.querySelector(".updated-copy time").textContent = formatThaiDate(poll.updated_at);
-  root.querySelectorAll(".display-footer .animated-number, .total-stage .animated-number").forEach((element) => animateValue(element, stats.total));
+  root.querySelectorAll(".display-footer .animated-number, .total-stage .animated-number").forEach((element) => animateValue(element, stats.total, animationDuration));
   root.querySelectorAll("[data-option-id]").forEach((screen) => {
     const option = stats.options.find((item) => item.id === screen.dataset.optionId);
     if (!option) return;
     screen.querySelector(".option-name").textContent = option.label;
-    animateValue(screen.querySelector('[data-format="percent"]'), option.percent);
-    animateValue(screen.querySelector('[data-format="number"]'), option.votes);
+    animateValue(screen.querySelector('[data-format="percent"]'), option.percent, animationDuration);
+    animateValue(screen.querySelector('[data-format="number"]'), option.votes, animationDuration);
     screen.querySelector(".option-meter i").style.width = `${option.percent}%`;
   });
-  applyDisplayPresentation(root, poll);
 }
 
 export function renderPreview(root, poll, physicalType, phase = "results") {

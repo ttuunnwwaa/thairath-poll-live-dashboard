@@ -38,6 +38,9 @@ export const DEFAULT_PRESENTATION = Object.freeze({
     logoUrl: "",
     logoSize: 82,
   },
+  animation: {
+    speed: 1,
+  },
   screens: {
     gold: {
       backgroundUrl: "",
@@ -82,8 +85,8 @@ export function defaultPoll(id = POLL_ID) {
     votes_gold: votesGold,
     votes_property: votesProperty,
     options: [
-      { id: "option-1", label: optionGold, votes: votesGold, color: DEFAULT_OPTION_COLORS[0] },
-      { id: "option-2", label: optionProperty, votes: votesProperty, color: DEFAULT_OPTION_COLORS[1] },
+      { id: "option-1", label: optionGold, votes: votesGold, color: DEFAULT_OPTION_COLORS[0], visual: clone(DEFAULT_PRESENTATION.screens.gold) },
+      { id: "option-2", label: optionProperty, votes: votesProperty, color: DEFAULT_OPTION_COLORS[1], visual: clone(DEFAULT_PRESENTATION.screens.property) },
     ],
     presentation: clone(DEFAULT_PRESENTATION),
     updated_at: new Date().toISOString(),

@@ -127,8 +127,8 @@ function summaryOptionsMarkup(poll) {
   </div>`).join("");
 }
 
-function rangeField(label, path, min, max, value, unit = "px") {
-  return html`<label class="range-field"><span>${label}<output data-output="${path}">${value}${unit}</output></span><input type="range" min="${min}" max="${max}" value="${value}" data-path="${path}" /></label>`;
+function rangeField(label, path, min, max, value, unit = "px", step = 1) {
+  return html`<label class="range-field"><span>${label}<output data-output="${path}">${value}${unit}</output></span><input type="range" min="${min}" max="${max}" step="${step}" value="${value}" data-unit="${unit}" data-path="${path}" /></label>`;
 }
 
 function colorField(label, key, value, detail) {
@@ -139,30 +139,32 @@ function colorField(label, key, value, detail) {
   </label>`;
 }
 
-function screenEditor(key, title, config) {
-  return html`<article class="screen-editor" data-editor-screen="${key}">
-    <div class="card-title"><div><span class="asset-dot asset-dot--${key}"></span><h3>${title}</h3></div><span>512 × 896</span></div>
+function optionVisualEditor(option, index) {
+  const config = option.visual;
+  const path = `options.${index}.visual`;
+  return html`<article class="screen-editor option-visual-editor" data-editor-option="${escapeHtml(option.id)}" style="--option-color:${escapeHtml(option.color)}">
+    <div class="card-title"><div><span class="asset-dot"></span><h3>${escapeHtml(option.label)}</h3></div><span>ตัวเลือก ${String(index + 1).padStart(2, "0")}</span></div>
     <div class="subsection">
       <h4>ภาพพื้นหลัง</h4>
-      <label>URL ภาพ<input type="url" data-path="presentation.screens.${key}.backgroundUrl" value="${escapeHtml(config.backgroundUrl)}" placeholder="https://…" /></label>
-      <label class="file-drop"><input type="file" accept="image/*" data-upload="background" data-screen="${key}" /><span>↑</span><b>อัปโหลดภาพพื้นหลัง</b><small>PNG, JPG หรือ WebP ไม่เกิน 8 MB</small></label>
+      <label>URL ภาพ<input type="url" data-path="${path}.backgroundUrl" value="${escapeHtml(config.backgroundUrl)}" placeholder="https://…" /></label>
+      <label class="file-drop"><input type="file" accept="image/*" data-upload="background" data-option-index="${index}" /><span>↑</span><b>อัปโหลดภาพพื้นหลัง</b><small>PNG, JPG หรือ WebP ไม่เกิน 8 MB</small></label>
       <div class="two-columns">
-        <label>การครอบภาพ<select data-path="presentation.screens.${key}.backgroundFit"><option value="cover" ${config.backgroundFit === "cover" ? "selected" : ""}>เต็มพื้นที่ (Cover)</option><option value="contain" ${config.backgroundFit === "contain" ? "selected" : ""}>เห็นภาพครบ (Contain)</option></select></label>
-        ${rangeField("ขนาดภาพ", `presentation.screens.${key}.backgroundScale`, 50, 200, config.backgroundScale, "%")}
+        <label>การครอบภาพ<select data-path="${path}.backgroundFit"><option value="cover" ${config.backgroundFit === "cover" ? "selected" : ""}>เต็มพื้นที่ (Cover)</option><option value="contain" ${config.backgroundFit === "contain" ? "selected" : ""}>เห็นภาพครบ (Contain)</option></select></label>
+        ${rangeField("ขนาดภาพ", `${path}.backgroundScale`, 50, 200, config.backgroundScale, "%")}
       </div>
       <div class="two-columns">
-        ${rangeField("ตำแหน่งแนวนอน", `presentation.screens.${key}.backgroundX`, 0, 100, config.backgroundX, "%")}
-        ${rangeField("ตำแหน่งแนวตั้ง", `presentation.screens.${key}.backgroundY`, 0, 100, config.backgroundY, "%")}
+        ${rangeField("ตำแหน่งแนวนอน", `${path}.backgroundX`, 0, 100, config.backgroundX, "%")}
+        ${rangeField("ตำแหน่งแนวตั้ง", `${path}.backgroundY`, 0, 100, config.backgroundY, "%")}
       </div>
     </div>
     <div class="subsection">
       <h4>โลโก้หรือภาพประกอบ</h4>
-      <label>URL ภาพ<input type="url" data-path="presentation.screens.${key}.artworkUrl" value="${escapeHtml(config.artworkUrl)}" placeholder="https://…" /></label>
-      <label class="file-drop file-drop--small"><input type="file" accept="image/*" data-upload="artwork" data-screen="${key}" /><span>＋</span><b>อัปโหลดรูปประกอบ</b></label>
-      ${rangeField("ขนาดรูป", `presentation.screens.${key}.artworkSize`, 10, 100, config.artworkSize, "%")}
+      <label>URL ภาพ<input type="url" data-path="${path}.artworkUrl" value="${escapeHtml(config.artworkUrl)}" placeholder="https://…" /></label>
+      <label class="file-drop file-drop--small"><input type="file" accept="image/*" data-upload="artwork" data-option-index="${index}" /><span>＋</span><b>อัปโหลดรูปประกอบ</b></label>
+      ${rangeField("ขนาดรูป", `${path}.artworkSize`, 10, 100, config.artworkSize, "%")}
       <div class="two-columns">
-        ${rangeField("ตำแหน่งแนวนอน", `presentation.screens.${key}.artworkX`, 0, 100, config.artworkX, "%")}
-        ${rangeField("ตำแหน่งแนวตั้ง", `presentation.screens.${key}.artworkY`, 0, 100, config.artworkY, "%")}
+        ${rangeField("ตำแหน่งแนวนอน", `${path}.artworkX`, 0, 100, config.artworkX, "%")}
+        ${rangeField("ตำแหน่งแนวตั้ง", `${path}.artworkY`, 0, 100, config.artworkY, "%")}
       </div>
     </div>
   </article>`;
@@ -248,11 +250,15 @@ function adminMarkup(poll, user, broadcastState) {
         </section>
 
         <section class="admin-section" id="design-section">
-          <div class="section-heading"><div><p class="section-kicker">VISUAL CONTROL</p><h2>ปรับหน้าตาโดยไม่แก้โค้ด</h2><span>ภาพและตำแหน่งตั้งค่าแยกกันสำหรับแต่ละจอ</span></div><button class="button button--ghost" id="reset-layout" type="button">↺ Reset การจัดวาง</button></div>
+          <div class="section-heading"><div><p class="section-kicker">VISUAL CONTROL</p><h2>ปรับหน้าตาโดยไม่แก้โค้ด</h2><span>ภาพและตำแหน่งตั้งค่าแยกตามแต่ละตัวเลือก และตามไปทุกจอที่นำตัวเลือกนั้นขึ้นแสดง</span></div><button class="button button--ghost" id="reset-layout" type="button">↺ Reset การจัดวาง</button></div>
           <article class="panel-card font-editor">
             <div class="card-title"><div><span class="font-icon">Aa</span><h3>ฟอนต์และขนาดตัวอักษร</h3></div><span>Google Fonts</span></div>
             <div class="font-source-grid"><label>ชื่อฟอนต์<input data-path="presentation.font.name" value="${escapeHtml(presentation.font.name)}" placeholder="Noto Sans Thai" /></label><label>Google Fonts URL หรือชื่อฟอนต์<input data-path="presentation.font.url" value="${escapeHtml(presentation.font.url)}" placeholder="https://fonts.googleapis.com/…" /></label></div>
             <div class="font-ranges">${rangeField("คำถาม", "presentation.font.question", 24, 96, presentation.font.question)}${rangeField("ชื่อสินทรัพย์", "presentation.font.asset", 20, 72, presentation.font.asset)}${rangeField("เปอร์เซ็นต์", "presentation.font.percent", 48, 180, presentation.font.percent)}${rangeField("จำนวนโหวต", "presentation.font.votes", 14, 48, presentation.font.votes)}${rangeField("ข้อความรอง", "presentation.font.secondary", 12, 36, presentation.font.secondary)}</div>
+          </article>
+          <article class="panel-card motion-editor">
+            <div class="card-title"><div><span class="motion-icon">↝</span><h3>ความเร็วแอนิเมชัน</h3></div><span>ตัวเลขและแถบคะแนน</span></div>
+            <div class="motion-control">${rangeField("ความเร็ว", "presentation.animation.speed", 0.25, 3, presentation.animation.speed, "×", 0.05)}<div><span>ช้า 0.25×</span><span>มาตรฐาน 1×</span><span>เร็ว 3×</span></div></div>
           </article>
           <article class="panel-card color-editor">
             <div class="card-title"><div><span class="color-icon">◐</span><h3>สีของหน้าจอและตัวอักษร</h3></div><span>ปรับแยกตามการใช้งาน</span></div>
@@ -280,7 +286,8 @@ function adminMarkup(poll, user, broadcastState) {
               </div>
             </div>
           </article>
-          <div class="screen-editor-grid">${screenEditor("gold", "จอทองคำ", presentation.screens.gold)}${screenEditor("property", "จออสังหาริมทรัพย์", presentation.screens.property)}</div>
+          <div class="option-visuals-heading"><div><h3>ภาพและตำแหน่งรายตัวเลือก</h3><span>ตัวเลือกใหม่จะมีชุดปรับแต่งของตัวเองอัตโนมัติ</span></div><strong>${poll.options.length} ตัวเลือก</strong></div>
+          <div class="screen-editor-grid">${poll.options.map(optionVisualEditor).join("")}</div>
         </section>
 
         <section class="admin-section" id="history-section">
@@ -456,7 +463,7 @@ export async function renderAdmin(root) {
       if (path === "presentation.colors.gold") draft.options[0].color = value;
       if (path === "presentation.colors.property") draft.options[1].color = value;
       const output = root.querySelector(`[data-output="${path}"]`);
-      if (output && input) output.textContent = `${input.value}${path.includes("font.") ? "px" : "%"}`;
+      if (output && input) output.textContent = `${input.value}${input.dataset.unit || ""}`;
       if (input?.type === "color") {
         const textInput = root.querySelector(`[data-color-text="${path}"]`);
         if (textInput) textInput.value = input.value.toUpperCase();
@@ -499,6 +506,7 @@ export async function renderAdmin(root) {
         label: `ตัวเลือกที่ ${index + 1}`,
         votes: 0,
         color: DEFAULT_OPTION_COLORS[index],
+        visual: clone(DEFAULT_PRESENTATION.screens.gold),
       });
       showDashboard(user, draft, true, draft.id).then(() => toast("เพิ่มตัวเลือกแล้ว กรุณากรอกชื่อและคะแนน"));
     });
@@ -558,10 +566,15 @@ export async function renderAdmin(root) {
       label.classList.add("is-loading");
       try {
         const isLogo = input.dataset.upload === "logo";
-        const url = await uploadPollAsset(file, isLogo ? "brand" : input.dataset.screen, input.dataset.upload);
+        const optionIndex = input.dataset.optionIndex === undefined ? -1 : Number(input.dataset.optionIndex);
+        const option = optionIndex >= 0 ? draft.options[optionIndex] : null;
+        const uploadGroup = isLogo ? "brand" : option ? `option-${option.id}` : input.dataset.screen;
+        const url = await uploadPollAsset(file, uploadGroup, input.dataset.upload);
         const path = isLogo
           ? "presentation.branding.logoUrl"
-          : `presentation.screens.${input.dataset.screen}.${input.dataset.upload === "background" ? "backgroundUrl" : "artworkUrl"}`;
+          : option
+            ? `options.${optionIndex}.visual.${input.dataset.upload === "background" ? "backgroundUrl" : "artworkUrl"}`
+            : `presentation.screens.${input.dataset.screen}.${input.dataset.upload === "background" ? "backgroundUrl" : "artworkUrl"}`;
         setDeep(draft, path, url);
         const urlInput = root.querySelector(`[data-path="${path}"]`);
         urlInput.value = url;
@@ -586,6 +599,9 @@ export async function renderAdmin(root) {
       const currentMode = draft.presentation.displayMode;
       draft.presentation = clone(DEFAULT_PRESENTATION);
       draft.presentation.displayMode = currentMode;
+      draft.options.forEach((option, index) => {
+        option.visual = clone(DEFAULT_PRESENTATION.screens[index === 1 ? "property" : "gold"]);
+      });
       showDashboard(user, draft, true, draft.id).then(() => toast("คืนค่าการจัดวางเริ่มต้นแล้ว กรุณากดบันทึก"));
     });
 
