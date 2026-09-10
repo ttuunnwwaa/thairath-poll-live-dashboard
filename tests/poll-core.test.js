@@ -3,6 +3,7 @@ import test from "node:test";
 import { POLL_IDS, defaultPoll } from "../src/defaults.js";
 import { contentForScreen } from "../src/display-view.js";
 import {
+  broadcastStatePatch,
   clamp,
   formatPercent,
   hasMeaningfulChange,
@@ -125,6 +126,14 @@ test("normalizes the shared live broadcast state", () => {
   assert.equal(state.active_poll_id, POLL_IDS[1]);
   assert.equal(state.phase, "question");
   assert.equal(normalizeBroadcastState({ phase: "invalid" }).phase, "results");
+});
+
+test("broadcast updates only include fields explicitly changed", () => {
+  assert.deepEqual(broadcastStatePatch({ phase: "results" }), { phase: "results" });
+  assert.deepEqual(
+    broadcastStatePatch({ active_poll_id: POLL_IDS[1], phase: "question" }),
+    { active_poll_id: POLL_IDS[1], phase: "question" },
+  );
 });
 
 test("live phases override each screen mapping", () => {

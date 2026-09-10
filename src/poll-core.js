@@ -174,6 +174,14 @@ export function normalizeBroadcastState(value = {}) {
   };
 }
 
+export function broadcastStatePatch(changes = {}) {
+  const normalized = normalizeBroadcastState(changes);
+  const patch = {};
+  if (Object.hasOwn(changes, "active_poll_id")) patch.active_poll_id = normalized.active_poll_id;
+  if (Object.hasOwn(changes, "phase")) patch.phase = normalized.phase;
+  return patch;
+}
+
 export function validatePoll(poll) {
   if (!poll.question.trim()) throw new Error("กรุณากรอกคำถาม");
   if (!Array.isArray(poll.options) || poll.options.length < 2) throw new Error("ต้องมีตัวเลือกอย่างน้อย 2 ตัวเลือก");

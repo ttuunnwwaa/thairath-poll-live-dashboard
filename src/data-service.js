@@ -8,7 +8,7 @@ import {
   defaultBroadcastState,
   defaultPoll,
 } from "./defaults.js";
-import { normalizeBroadcastState, normalizePoll } from "./poll-core.js";
+import { broadcastStatePatch, normalizeBroadcastState, normalizePoll } from "./poll-core.js";
 
 const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").trim();
 const supabaseAnonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "").trim();
@@ -104,7 +104,11 @@ export async function setBroadcastState(changes) {
     window.dispatchEvent(new CustomEvent("thairath-demo-broadcast", { detail: next }));
     return next;
   }
-  const { id: _id, updated_at: _updatedAt, updated_by: _updatedBy, ...payload } = next;
+  // Only update fields requested by this action. A display or admin tab may have
+  // an older cached active poll, so sending the whole cached state could switch
+  // the broadcast back while another tab is only changing the phase.
+  const payload = broadcastStatePatch(changes);
+  if (!Object.keys(payload).length) return fetchBroadcastState();
   const { data, error } = await supabase
     .from("broadcast_state")
     .update(payload)

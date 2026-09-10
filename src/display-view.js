@@ -127,9 +127,27 @@ export function applyDisplayPresentation(root, poll) {
     const customLogo = brand.querySelector(".brand-custom-logo");
     const defaultLogo = brand.querySelector(".brand-default-logo");
     const hasCustomLogo = Boolean(presentation.branding.logoUrl);
-    customLogo.hidden = !hasCustomLogo;
-    defaultLogo.hidden = hasCustomLogo;
-    if (hasCustomLogo && customLogo.src !== presentation.branding.logoUrl) customLogo.src = presentation.branding.logoUrl;
+    const showDefaultLogo = () => {
+      customLogo.hidden = true;
+      defaultLogo.hidden = false;
+    };
+    if (!hasCustomLogo) {
+      customLogo.removeAttribute("src");
+      showDefaultLogo();
+      return;
+    }
+    customLogo.onload = () => {
+      customLogo.hidden = false;
+      defaultLogo.hidden = true;
+    };
+    customLogo.onerror = showDefaultLogo;
+    customLogo.hidden = false;
+    defaultLogo.hidden = true;
+    if (customLogo.getAttribute("src") !== presentation.branding.logoUrl) {
+      customLogo.src = presentation.branding.logoUrl;
+    } else if (customLogo.complete && customLogo.naturalWidth === 0) {
+      showDefaultLogo();
+    }
   });
 }
 

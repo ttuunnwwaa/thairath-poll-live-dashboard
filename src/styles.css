@@ -169,6 +169,12 @@ input:focus, textarea:focus, select:focus { border-color: #2bac7f; box-shadow: 0
 .broadcast-controls > div strong { color: #183d31; font-size: 14px; }
 .broadcast-controls label { min-width: 145px; display: grid; gap: 3px; }
 .broadcast-controls select { padding: 8px 30px 8px 10px; color: #284c40; font-size: 12px; }
+.broadcast-controls .live-phase-control { min-width: 260px; gap: 4px; }
+.live-phase-buttons { padding: 3px; display: flex; gap: 3px; border: 1px solid #d8e2dd; border-radius: 8px; background: #f4f7f5; }
+.live-phase-buttons button { min-width: 70px; border: 0; border-radius: 5px; padding: 7px 9px; color: #657a71; background: transparent; font: 650 11px/1.2 "IBM Plex Sans Thai", sans-serif; }
+.live-phase-buttons button:hover:not(:disabled) { color: #176e53; background: #e5f2ec; }
+.live-phase-buttons button.is-active { color: #fff; background: #157b59; box-shadow: 0 2px 6px rgba(16, 101, 73, .2); }
+.live-phase-buttons button:disabled { opacity: .45; cursor: not-allowed; }
 .button--live { color: #167a58; background: #e5f5ee; box-shadow: none; }
 .button--live:disabled { opacity: 1; cursor: default; }
 .admin-section { max-width: 1240px; margin: 0 auto 54px; scroll-margin-top: 95px; }
@@ -276,6 +282,7 @@ input[type="range"] { height: 4px; padding: 0; border: 0; accent-color: #15875f;
 .brand-editor-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: #176e53; background: #e5f2ec; font-weight: 800; }
 .brand-editor-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; align-items: start; }
 .brand-editor-grid .file-drop { margin-top: 12px; }
+.reset-logo-button { margin-top: 12px; width: 100%; }
 .brand-controls { display: grid; gap: 22px; }
 .toggle-field { min-height: 70px; padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #e1e6e3; border-radius: 10px; background: #fafbf9; }
 .toggle-field > span { display: grid; gap: 3px; }
@@ -356,6 +363,7 @@ body[data-route^="/display"] { overflow: hidden; background: #061912; }
 .brand-identity { font-size: clamp(12px, calc(var(--brand-logo-size) * .26), 54px); }
 .poll-brand .brand-leaf { width: .65em; height: 1.05em; }
 .brand-custom-logo { width: var(--brand-logo-size); max-height: 72px; object-fit: contain; object-position: left center; }
+.brand-default-logo[hidden], .brand-custom-logo[hidden] { display: none !important; }
 .poll-brand.is-logo-hidden .brand-identity,
 .poll-brand.is-logo-hidden .brand-divider,
 .poll-brand.is-logo-hidden .brand-poll { visibility: hidden; }

@@ -185,11 +185,14 @@ function adminMarkup(poll, user, broadcastState) {
           <div class="poll-set-tabs">${pollTabs}</div>
           <div class="broadcast-controls">
             <div><span>กำลังออกจอ</span><strong>โพลชุดที่ ${activePollNumber}</strong></div>
-            <label>สถานะบนจอ<select id="live-phase" ${isActivePoll ? "" : "disabled"}>
-              <option value="question" ${broadcastState.phase === "question" ? "selected" : ""}>แสดงคำถาม</option>
-              <option value="results" ${broadcastState.phase === "results" ? "selected" : ""}>แสดงผลโพล</option>
-              <option value="summary" ${broadcastState.phase === "summary" ? "selected" : ""}>แสดงยอดรวม</option>
-            </select></label>
+            <div class="live-phase-control">
+              <span>เปลี่ยนสิ่งที่ออกจอทันที</span>
+              <div class="live-phase-buttons" role="group" aria-label="สถานะบนจอ">
+                <button type="button" data-live-phase="question" class="${broadcastState.phase === "question" ? "is-active" : ""}" aria-pressed="${broadcastState.phase === "question"}" ${isActivePoll ? "" : "disabled"}>คำถาม</button>
+                <button type="button" data-live-phase="results" class="${broadcastState.phase === "results" ? "is-active" : ""}" aria-pressed="${broadcastState.phase === "results"}" ${isActivePoll ? "" : "disabled"}>ผลโพล</button>
+                <button type="button" data-live-phase="summary" class="${broadcastState.phase === "summary" ? "is-active" : ""}" aria-pressed="${broadcastState.phase === "summary"}" ${isActivePoll ? "" : "disabled"}>ยอดรวม</button>
+              </div>
+            </div>
             <button class="button ${isActivePoll ? "button--live" : "button--primary"}" id="activate-poll" type="button" ${isActivePoll ? "disabled" : ""}>${isActivePoll ? "● กำลังขึ้นจอ" : `นำโพลชุดที่ ${pollNumber} ขึ้นจอ →`}</button>
           </div>
         </section>
@@ -248,11 +251,12 @@ function adminMarkup(poll, user, broadcastState) {
             <p class="color-help">หากใส่ภาพพื้นหลัง สีนี้จะเป็นสีรองด้านหลังภาพ โดยเฉพาะเมื่อเลือกการครอบภาพแบบ Contain</p>
           </article>
           <article class="panel-card brand-editor">
-            <div class="card-title"><div><span class="brand-editor-icon">T</span><h3>โลโก้มุมซ้ายบน</h3></div><span>ใช้ร่วมกันทุกจอ</span></div>
+            <div class="card-title"><div><span class="brand-editor-icon">T</span><h3>โลโก้มุมซ้ายบน</h3></div><span>โพลชุดนี้ · ใช้ร่วมกันทุกจอ</span></div>
             <div class="brand-editor-grid">
               <div>
                 <label>URL โลโก้<input type="url" data-path="presentation.branding.logoUrl" value="${escapeHtml(presentation.branding.logoUrl)}" placeholder="https://…" /></label>
                 <label class="file-drop file-drop--small"><input type="file" accept="image/*" data-upload="logo" /><span>＋</span><b>อัปโหลดโลโก้</b><small>PNG โปร่งใสแนะนำ</small></label>
+                <button class="button button--ghost reset-logo-button" id="reset-logo" type="button">↺ ใช้โลโก้ไทยรัฐเริ่มต้น</button>
               </div>
               <div class="brand-controls">
                 <label class="toggle-field"><span><b>แสดงโลโก้บนจอ</b><small>ปิดได้โดยไม่ลบไฟล์โลโก้</small></span><input type="checkbox" data-path="presentation.branding.showLogo" ${presentation.branding.showLogo ? "checked" : ""} /></label>
@@ -387,19 +391,28 @@ export async function renderAdmin(root) {
       showDashboard(user, null, false, button.dataset.pollTab);
     }));
 
-    root.querySelector("#live-phase").addEventListener("change", async (event) => {
-      if (draft.id !== broadcastState.active_poll_id) return;
-      const select = event.currentTarget;
-      select.disabled = true;
+    const syncPhaseButtons = (disabled = false) => {
+      root.querySelectorAll("[data-live-phase]").forEach((button) => {
+        const active = button.dataset.livePhase === broadcastState.phase;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", String(active));
+        button.disabled = disabled || draft.id !== broadcastState.active_poll_id;
+      });
+    };
+
+    root.querySelectorAll("[data-live-phase]").forEach((button) => button.addEventListener("click", async () => {
+      if (draft.id !== broadcastState.active_poll_id || button.dataset.livePhase === broadcastState.phase) return;
+      syncPhaseButtons(true);
       try {
-        broadcastState = await setBroadcastState({ phase: select.value });
+        broadcastState = await setBroadcastState({ phase: button.dataset.livePhase });
+        syncPhaseButtons();
         updatePreviews();
-        toast("เปลี่ยนสถานะบนจอแล้ว");
+        toast(`เปลี่ยนหน้าจอเป็น “${button.textContent.trim()}” แล้ว`);
       } catch (error) {
-        select.value = broadcastState.phase;
+        syncPhaseButtons();
         toast(error.message, "error");
-      } finally { select.disabled = false; }
-    });
+      }
+    }));
 
     root.querySelector("#activate-poll").addEventListener("click", async (event) => {
       const button = event.currentTarget;
@@ -542,6 +555,16 @@ export async function renderAdmin(root) {
       } catch (error) { toast(error.message, "error"); }
       finally { label.classList.remove("is-loading"); input.value = ""; }
     }));
+
+    root.querySelector("#reset-logo").addEventListener("click", () => {
+      draft.presentation.branding.logoUrl = "";
+      draft.presentation.branding.showLogo = true;
+      root.querySelector('[data-path="presentation.branding.logoUrl"]').value = "";
+      root.querySelector('[data-path="presentation.branding.showLogo"]').checked = true;
+      updatePreviews();
+      markDirty();
+      toast("คืนโลโก้ไทยรัฐเริ่มต้นแล้ว กรุณากดบันทึก");
+    });
 
     root.querySelector("#reset-layout").addEventListener("click", () => {
       const currentMode = draft.presentation.displayMode;
