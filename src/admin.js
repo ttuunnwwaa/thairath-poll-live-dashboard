@@ -44,7 +44,7 @@ function baseLink(path) {
 
 function loginMarkup(message = "") {
   return html`<main class="auth-page">
-    <section class="auth-card">
+    <section class="auth-card auth-card--login">
       <div class="auth-brand"><span class="brand-leaf"></span><strong>ไทยรัฐ</strong><i></i><b>POLL</b></div>
       <p class="section-kicker">ADMIN CONTROL ROOM</p>
       <h1>เข้าสู่ระบบผู้ดูแล</h1>
@@ -60,7 +60,15 @@ function loginMarkup(message = "") {
           <button class="button button--primary button--wide" type="submit">เปิดหน้าผู้ดูแลแบบตัวอย่าง</button>
         `}
       </form>
-      <a class="back-link" href="${baseLink("display")}">← ไปหน้าจอแสดงผล</a>
+      <div class="auth-display-picker">
+        <span>เปิดหน้าจอแสดงผล</span>
+        <div>
+          <a href="${baseLink("display")}"><small>DISPLAY 01</small><strong>จอกลาง</strong><em>1530 × 896</em></a>
+          <a href="${baseLink("display/gold")}"><small>DISPLAY 02</small><strong>จอซ้าย</strong><em>512 × 896</em></a>
+          <a href="${baseLink("display/property")}"><small>DISPLAY 03</small><strong>จอขวา</strong><em>512 × 896</em></a>
+        </div>
+      </div>
+      <a class="back-link" href="${baseLink("")}">← กลับหน้าเลือกทั้งหมด</a>
     </section>
   </main>`;
 }

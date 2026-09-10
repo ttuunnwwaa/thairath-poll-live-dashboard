@@ -99,6 +99,7 @@ a { color: inherit; text-decoration: none; }
     #061a14;
 }
 .auth-card { width: min(100%, 470px); padding: 44px; border: 1px solid rgba(255,255,255,.1); border-radius: 20px; background: rgba(8, 39, 30, .82); color: #fff; box-shadow: 0 40px 100px rgba(0,0,0,.35); }
+.auth-card--login { width: min(100%, 570px); }
 .auth-brand { margin-bottom: 48px; font-size: 20px; }
 .auth-brand b { color: #69d3a6; letter-spacing: .12em; }
 .auth-card h1 { margin: 0; font-size: 32px; }
@@ -114,6 +115,14 @@ input:focus, textarea:focus, select:focus { border-color: #2bac7f; box-shadow: 0
 .setup-notice { display: grid; gap: 3px; border: 1px solid rgba(113,218,174,.2); border-radius: 10px; padding: 14px; color: #b8cfc5; background: rgba(85,203,155,.08); }
 .setup-notice strong { color: #7bdab2; }
 .setup-notice code { color: white; }
+.auth-display-picker { margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.1); }
+.auth-display-picker > span { display: block; margin-bottom: 9px; color: #9eb5ac; font-size: 11px; font-weight: 650; }
+.auth-display-picker > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.auth-display-picker a { min-width: 0; border: 1px solid rgba(255,255,255,.11); border-radius: 9px; padding: 11px 12px; display: grid; gap: 2px; background: rgba(255,255,255,.045); transition: border-color .18s, background .18s, transform .18s; }
+.auth-display-picker a:hover { border-color: rgba(105,211,166,.65); background: rgba(45,151,109,.13); transform: translateY(-1px); }
+.auth-display-picker small { color: #69d3a6; font: 700 8px/1.3 sans-serif; letter-spacing: .09em; }
+.auth-display-picker strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.auth-display-picker em { color: #829e93; font: normal 10px/1.4 sans-serif; }
 .back-link { display: block; margin-top: 22px; text-align: center; color: #90aaa0; font-size: 13px; }
 
 /* Admin */
@@ -617,6 +626,14 @@ body[data-route^="/display"] { overflow: hidden; background: #061912; }
   .save-bar small { display: none; }
   .home-links { grid-template-columns: 1fr; }
   .home-brand { margin-bottom: 42px; }
+}
+
+@media (max-width: 520px) {
+  .auth-page { padding: 14px; }
+  .auth-card { padding: 30px 24px; }
+  .auth-brand { margin-bottom: 34px; }
+  .auth-display-picker > div { grid-template-columns: 1fr; }
+  .auth-display-picker a { grid-template-columns: 82px 1fr auto; align-items: center; }
 }
 
 @media (max-aspect-ratio: 4/5) {
