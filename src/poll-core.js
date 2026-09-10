@@ -149,6 +149,10 @@ export function normalizePoll(value = {}) {
       color: /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : DEFAULT_OPTION_COLORS[index],
     };
   });
+  // Option colors are the single source of truth for result tiles. Keeping the
+  // legacy presentation fields in sync also repairs older saved poll records.
+  presentation.colors.gold = options[0].color;
+  presentation.colors.property = options[1].color;
   return {
     id,
     question: String(value.question || fallback.question).trim().slice(0, 240),

@@ -64,6 +64,21 @@ test("normalizes display background colors and rejects invalid values", () => {
   assert.equal(poll.presentation.colors.property, "#123456");
 });
 
+test("uses option colors as the shared result colors on every display", () => {
+  const poll = normalizePoll({
+    options: [
+      { id: "option-1", label: "หุ้น จีน", votes: 300, color: "#ffc843" },
+      { id: "option-2", label: "หุ้น อเมริกา", votes: 2000, color: "#002de9" },
+    ],
+    presentation: { colors: { gold: "#8a5c12", property: "#0d6348" } },
+  });
+  assert.equal(poll.presentation.colors.gold, "#ffc843");
+  assert.equal(poll.presentation.colors.property, "#002de9");
+  const markup = displayMarkup(poll, "combined", { phase: "results" });
+  assert.match(markup, /--option-color:#ffc843/);
+  assert.match(markup, /--option-color:#002de9/);
+});
+
 test("normalizes display branding controls", () => {
   const poll = normalizePoll({ presentation: { branding: { showLogo: false, logoUrl: " https://example.com/logo.png ", logoSize: 999 } } });
   assert.equal(poll.presentation.branding.showLogo, false);

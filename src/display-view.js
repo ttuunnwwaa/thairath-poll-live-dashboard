@@ -96,11 +96,13 @@ function setFont(presentation) {
 
 export function applyDisplayPresentation(root, poll) {
   const { presentation } = poll;
+  const primaryOptionColor = poll.options[0]?.color || presentation.colors.gold;
+  const secondaryOptionColor = poll.options[1]?.color || presentation.colors.property;
   setFont(presentation);
   root.style.setProperty("--poll-font", `'${presentation.font.name.replace(/["']/g, "")}', 'Noto Sans Thai', sans-serif`);
-  root.style.setProperty("--color-gold", presentation.colors.gold);
+  root.style.setProperty("--color-gold", primaryOptionColor);
   root.style.setProperty("--color-center", presentation.colors.center);
-  root.style.setProperty("--color-property", presentation.colors.property);
+  root.style.setProperty("--color-property", secondaryOptionColor);
   root.style.setProperty("--color-chrome", presentation.colors.chrome);
   root.style.setProperty("--color-text-primary", presentation.colors.textPrimary);
   root.style.setProperty("--color-text-secondary", presentation.colors.textSecondary);
@@ -110,8 +112,9 @@ export function applyDisplayPresentation(root, poll) {
   }
   root.querySelectorAll("[data-screen]").forEach((screen) => {
     const config = presentation.screens[screen.dataset.screen];
+    const displayedOption = poll.options.find((option) => option.id === screen.dataset.optionId);
     const background = screen.querySelector(".screen-background");
-    background.style.backgroundColor = presentation.colors[screen.dataset.screen];
+    background.style.backgroundColor = displayedOption?.color || presentation.colors[screen.dataset.screen];
     background.style.backgroundImage = config.backgroundUrl ? `url("${config.backgroundUrl.replace(/["\\]/g, "")}")` : "";
     background.style.backgroundSize = config.backgroundScale === 100 ? config.backgroundFit : `${config.backgroundScale}% auto`;
     background.style.backgroundPosition = `${config.backgroundX}% ${config.backgroundY}%`;

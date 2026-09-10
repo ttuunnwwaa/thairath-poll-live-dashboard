@@ -134,8 +134,8 @@ function rangeField(label, path, min, max, value, unit = "px") {
 function colorField(label, key, value, detail) {
   const path = `presentation.colors.${key}`;
   return html`<label class="color-field">
-    <span>${label}<small>${detail}</small></span>
-    <div><input type="color" data-path="${path}" value="${value}" aria-label="เลือก${label}" /><input class="color-hex" data-color-text="${path}" value="${value.toUpperCase()}" maxlength="7" spellcheck="false" aria-label="ค่าสี ${label}" /></div>
+    <span>${escapeHtml(label)}<small>${escapeHtml(detail)}</small></span>
+    <div><input type="color" data-path="${path}" value="${value}" aria-label="เลือก${escapeHtml(label)}" /><input class="color-hex" data-color-text="${path}" value="${value.toUpperCase()}" maxlength="7" spellcheck="false" aria-label="ค่าสี ${escapeHtml(label)}" /></div>
   </label>`;
 }
 
@@ -257,9 +257,9 @@ function adminMarkup(poll, user, broadcastState) {
           <article class="panel-card color-editor">
             <div class="card-title"><div><span class="color-icon">◐</span><h3>สีของหน้าจอและตัวอักษร</h3></div><span>ปรับแยกตามการใช้งาน</span></div>
             <div class="color-grid">
-              ${colorField("ทองคำ", "gold", presentation.colors.gold, "ผลโพลตัวเลือกทองคำ")}
+              ${colorField(poll.options[0]?.label || "ตัวเลือกที่ 1", "gold", presentation.colors.gold, "สีของตัวเลือกที่ 1 ทุกหน้าจอ")}
               ${colorField("จอกลาง", "center", presentation.colors.center, "คำถามและยอดโหวตรวม")}
-              ${colorField("อสังหาริมทรัพย์", "property", presentation.colors.property, "ผลโพลตัวเลือกอสังหาฯ")}
+              ${colorField(poll.options[1]?.label || "ตัวเลือกที่ 2", "property", presentation.colors.property, "สีของตัวเลือกที่ 2 ทุกหน้าจอ")}
               ${colorField("พื้นหัว–ท้ายจอ", "chrome", presentation.colors.chrome, "พื้นที่สีเขียวเข้ม")}
               ${colorField("ข้อความหลัก", "textPrimary", presentation.colors.textPrimary, "คำถาม ชื่อ และตัวเลข")}
               ${colorField("ข้อความรอง", "textSecondary", presentation.colors.textSecondary, "ป้ายกำกับและรายละเอียด")}
