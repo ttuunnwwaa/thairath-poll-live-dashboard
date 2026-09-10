@@ -214,6 +214,14 @@ function adminMarkup(poll, user, broadcastState) {
 
         <section class="admin-section" id="display-section">
           <div class="section-heading"><div><p class="section-kicker">OUTPUT MODE</p><h2>โหมดการแสดงผล</h2><span>เลือกวิธีจัดจอสำหรับงาน โดยทุกโหมดใช้ข้อมูลชุดเดียวกัน</span></div></div>
+          <div class="display-launcher">
+            <div class="display-launcher-heading"><span>เปิดจอจริง</span><small>เปิดแต่ละ URL ในแท็บแยก แล้วกดปุ่มเต็มจอบนหน้าจอ</small></div>
+            <div class="display-launcher-links">
+              <a href="${baseLink("display")}" target="_blank" rel="noopener"><span class="screen-shape screen-shape--center"></span><span><small>1530 × 896</small><strong>จอกลาง</strong></span><b>↗</b></a>
+              <a href="${baseLink("display/gold")}" target="_blank" rel="noopener"><span class="screen-shape screen-shape--left"></span><span><small>512 × 896</small><strong>จอซ้ายแนวตั้ง</strong></span><b>↗</b></a>
+              <a href="${baseLink("display/property")}" target="_blank" rel="noopener"><span class="screen-shape screen-shape--right"></span><span><small>512 × 896</small><strong>จอขวาแนวตั้ง</strong></span><b>↗</b></a>
+            </div>
+          </div>
           <div class="mode-grid">${modeCards}</div>
           <article class="screen-mapping-card">
             <div class="mapping-heading"><div><h3>กำหนดเนื้อหาแต่ละจอ</h3><span>เปลี่ยนได้อิสระโดยไม่ต้องสลับ URL ที่ตั้งไว้กับ LED processor</span></div><div class="mapping-presets"><button type="button" data-screen-preset="results">ผลโพล 3 จอ</button><button type="button" data-screen-preset="question">จอกลางเป็นคำถาม</button><button type="button" data-screen-preset="total">จอกลางเป็นยอดรวม</button></div></div>
