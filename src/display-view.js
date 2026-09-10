@@ -42,22 +42,40 @@ export function contentForScreen(poll, physicalType, phase = "results") {
   return poll.presentation?.screenAssignments?.[position] || fallback;
 }
 
+export function optionIdsForContent(content, poll) {
+  const validIds = new Set(poll.options.map((option) => option.id));
+  let candidates = [];
+  if (content === "combined") candidates = poll.options.map((option) => option.id);
+  else if (content === "gold") candidates = [poll.options[0]?.id];
+  else if (content === "property") candidates = [poll.options[1]?.id];
+  else if (content?.startsWith("option:")) candidates = [content.slice(7)];
+  else if (content?.startsWith("options:")) candidates = content.slice(8).split(",");
+  return [...new Set(candidates)].filter((id) => id && validIds.has(id));
+}
+
+export function optionContentForIds(ids, poll) {
+  const validIds = new Set(poll.options.map((option) => option.id));
+  const selectedIds = [...new Set(ids)].filter((id) => validIds.has(id));
+  if (selectedIds.length === 1) return `option:${selectedIds[0]}`;
+  if (selectedIds.length > 1) return `options:${selectedIds.join(",")}`;
+  return "";
+}
+
 function resultsMarkup(content, poll, physicalType) {
   const stats = pollStats(poll);
-  if (content === "combined") return poll.options.map((option, index) => optionMarkup(option, poll, index, true)).join("");
-  if (content === "gold" || content === "property") {
-    const index = content === "gold" ? 0 : 1;
-    return optionMarkup(poll.options[index], poll, index, false, physicalType === "gold" ? "gold" : physicalType === "property" ? "property" : null);
-  }
-  if (content.startsWith("option:")) {
-    const optionId = content.slice(7);
-    const index = Math.max(0, poll.options.findIndex((option) => option.id === optionId));
-    return optionMarkup(poll.options[index], poll, index, false, physicalType === "gold" ? "gold" : physicalType === "property" ? "property" : null);
-  }
   if (content === "question") return html`<article class="question-stage">
     <p>THAIRATH POLL · คำถามวันนี้</p><h2>${escapeHtml(poll.question)}</h2>
     <span>ร่วมแสดงความคิดเห็นของคุณ</span><i aria-hidden="true"></i>
   </article>`;
+  const optionIds = optionIdsForContent(content, poll);
+  if (optionIds.length) {
+    const surfaceKey = physicalType === "gold" ? "gold" : physicalType === "property" ? "property" : null;
+    const compact = content === "combined" || optionIds.length > 1;
+    return optionIds.map((optionId) => {
+      const index = poll.options.findIndex((option) => option.id === optionId);
+      return optionMarkup(poll.options[index], poll, index, compact, surfaceKey);
+    }).join("");
+  }
   return html`<article class="total-stage">
     <p>ผลโหวตทั้งหมด</p><div><strong class="animated-number" data-value="${stats.total}" data-format="number">${formatNumber(stats.total)}</strong><span>คะแนน</span></div>
     <small>${stats.options.map((option) => `${escapeHtml(option.label)} · ${formatPercent(option.percent)}%`).join(" &nbsp;&nbsp; ")}</small>
@@ -68,10 +86,14 @@ export function displayMarkup(poll, physicalType = "combined", { preview = false
   const stats = pollStats(poll);
   const content = contentForScreen(poll, physicalType, phase);
   const isPhysicalCenter = physicalType === "combined";
-  const optionGridClass = content === "combined" ? `option-grid--${poll.options.length}` : "";
-  return html`<main class="display-shell display-shell--${physicalType} display-content--${content} ${preview ? "is-preview" : ""}" data-content="${content}" data-phase="${phase}">
+  const displayedOptionIds = optionIdsForContent(content, poll);
+  const optionCount = displayedOptionIds.length;
+  const isMultiple = content === "combined" || content.startsWith("options:");
+  const contentClass = content.startsWith("options:") ? "multiple" : content;
+  const optionGridClass = isMultiple ? `option-grid--${optionCount}` : "";
+  return html`<main class="display-shell display-shell--${physicalType} display-content--${contentClass} ${preview ? "is-preview" : ""}" data-content="${content}" data-phase="${phase}">
     <header class="display-header">${brandMarkup(!isPhysicalCenter)}<p class="display-question">${escapeHtml(poll.question)}</p></header>
-    <section class="display-results ${content === "combined" ? "display-results--combined" : "display-results--single"} ${content === "combined" && poll.options.length > 2 ? "has-many-options" : ""} ${optionGridClass}" data-option-count="${poll.options.length}">${resultsMarkup(content, poll, physicalType)}</section>
+    <section class="display-results ${isMultiple ? "display-results--multiple" : "display-results--single"} ${optionCount > 2 ? "has-many-options" : ""} ${optionGridClass} result-count--${optionCount}" data-option-count="${optionCount}">${resultsMarkup(content, poll, physicalType)}</section>
     <footer class="display-footer">
       <div><span>ยอดโหวตรวม</span><strong class="animated-number" data-value="${stats.total}" data-format="number">${formatNumber(stats.total)}</strong><small>คะแนน</small></div>
       <div class="updated-copy"><span>อัปเดตล่าสุด</span><time>${formatThaiDate(poll.updated_at)}</time></div>
@@ -193,9 +215,8 @@ export function updateDisplay(root, poll, physicalType = "combined", { rebuild =
   const currentContent = root.querySelector(".display-shell")?.dataset.content;
   const nextContent = contentForScreen(poll, physicalType, phase);
   const renderedOptionIds = [...root.querySelectorAll("[data-option-id]")].map((element) => element.dataset.optionId);
-  const nextOptionIds = nextContent === "combined" ? poll.options.map((option) => option.id) : renderedOptionIds;
-  const optionStructureChanged = nextContent === "combined"
-    && JSON.stringify(renderedOptionIds) !== JSON.stringify(nextOptionIds);
+  const nextOptionIds = optionIdsForContent(nextContent, poll);
+  const optionStructureChanged = JSON.stringify(renderedOptionIds) !== JSON.stringify(nextOptionIds);
   if (rebuild || !currentContent || currentContent !== nextContent || optionStructureChanged) {
     const status = root.querySelector(".connection-indicator")?.dataset.status;
     root.innerHTML = displayMarkup(poll, physicalType, { phase });

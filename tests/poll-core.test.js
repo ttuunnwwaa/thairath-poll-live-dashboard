@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { POLL_IDS, defaultPoll } from "../src/defaults.js";
-import { contentForScreen, displayMarkup } from "../src/display-view.js";
+import { contentForScreen, displayMarkup, optionContentForIds, optionIdsForContent } from "../src/display-view.js";
 import {
   broadcastStatePatch,
   clamp,
@@ -124,6 +124,47 @@ test("accepts safe custom content mapping for all three physical screens", () =>
   assert.equal(poll.presentation.screenAssignments.left, "gold");
   assert.equal(poll.presentation.screenAssignments.center, "question");
   assert.equal(poll.presentation.screenAssignments.right, "total");
+});
+
+test("stores multiple selected options in one side-screen mapping", () => {
+  const poll = normalizePoll({
+    options: [
+      { id: "option-1", label: "หนึ่ง", votes: 10, color: "#c28f19" },
+      { id: "option-2", label: "สอง", votes: 20, color: "#087c58" },
+      { id: "option-3", label: "สาม", votes: 30, color: "#315dd8" },
+    ],
+    presentation: { screenAssignments: { left: "options:option-1,option-3", center: "combined", right: "option:option-2" } },
+  });
+  assert.deepEqual(optionIdsForContent(poll.presentation.screenAssignments.left, poll), ["option-1", "option-3"]);
+  assert.equal(optionContentForIds(["option-3", "option-1"], poll), "options:option-3,option-1");
+  assert.equal(poll.presentation.screenAssignments.left, "options:option-1,option-3");
+});
+
+test("renders multiple selected choices on a portrait side display", () => {
+  const poll = normalizePoll({
+    options: [
+      { id: "option-1", label: "หนึ่ง", votes: 10, color: "#c28f19" },
+      { id: "option-2", label: "สอง", votes: 20, color: "#087c58" },
+      { id: "option-3", label: "สาม", votes: 30, color: "#315dd8" },
+    ],
+    presentation: { screenAssignments: { left: "options:option-1,option-3" } },
+  });
+  const markup = displayMarkup(poll, "gold", { phase: "results" });
+  assert.match(markup, /display-content--multiple/);
+  assert.match(markup, /result-count--2/);
+  assert.equal((markup.match(/data-option-id=/g) || []).length, 2);
+  assert.doesNotMatch(markup, /data-option-id="option-2"/);
+});
+
+test("repairs a saved multi-screen mapping after an option is removed", () => {
+  const poll = normalizePoll({
+    options: [
+      { id: "option-1", label: "หนึ่ง", votes: 10, color: "#c28f19" },
+      { id: "option-2", label: "สอง", votes: 20, color: "#087c58" },
+    ],
+    presentation: { screenAssignments: { left: "options:option-1,option-missing" } },
+  });
+  assert.equal(poll.presentation.screenAssignments.left, "option:option-1");
 });
 
 test("clamps visual controls to their safe ranges", () => {

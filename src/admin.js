@@ -18,7 +18,7 @@ import {
   updatePassword,
   uploadPollAsset,
 } from "./data-service.js";
-import { renderPreview } from "./display-view.js";
+import { optionContentForIds, optionIdsForContent, renderPreview } from "./display-view.js";
 import { formatNumber, formatPercent, formatThaiDate, normalizePoll, pollStats, validatePoll } from "./poll-core.js";
 
 const html = String.raw;
@@ -105,6 +105,28 @@ function screenContentSelect(position, label, size, value, poll) {
   ];
   const options = contentOptions.map(([key, text]) => `<option value="${key}" ${value === key ? "selected" : ""}>${escapeHtml(text)}</option>`).join("");
   return html`<label class="screen-map-item"><span><i class="screen-shape screen-shape--${position}"></i><b>${label}</b><small>${size}</small></span><select data-path="presentation.screenAssignments.${position}">${options}</select></label>`;
+}
+
+function sideScreenContentPicker(position, label, size, value, poll) {
+  const fixedModes = ["question", "combined", "total"];
+  const mode = fixedModes.includes(value) ? value : "options";
+  const fallbackIndex = position === "left" ? 0 : Math.min(1, poll.options.length - 1);
+  const selectedIds = optionIdsForContent(value, poll);
+  if (mode === "options" && !selectedIds.length && poll.options[fallbackIndex]) selectedIds.push(poll.options[fallbackIndex].id);
+  const optionChecks = poll.options.map((option, index) => html`<label class="side-option-choice">
+    <input type="checkbox" data-side-option-position="${position}" value="${escapeHtml(option.id)}" ${selectedIds.includes(option.id) ? "checked" : ""} ${mode === "options" ? "" : "disabled"} />
+    <span><i style="--option-color:${escapeHtml(option.color)}"></i><b>${String(index + 1).padStart(2, "0")}</b><em>${escapeHtml(option.label)}</em></span>
+  </label>`).join("");
+  return html`<div class="screen-map-item side-screen-picker" data-side-picker="${position}">
+    <span><i class="screen-shape screen-shape--${position}"></i><b>${label}</b><small>${size}</small></span>
+    <label class="side-mode-label">รูปแบบ<select data-side-mode="${position}">
+      <option value="options" ${mode === "options" ? "selected" : ""}>เลือกช้อยที่จะแสดง</option>
+      <option value="combined" ${mode === "combined" ? "selected" : ""}>ทุกตัวเลือก</option>
+      <option value="question" ${mode === "question" ? "selected" : ""}>คำถามอย่างเดียว</option>
+      <option value="total" ${mode === "total" ? "selected" : ""}>ยอดโหวตรวม</option>
+    </select></label>
+    <div class="side-option-checklist ${mode === "options" ? "" : "is-disabled"}" data-side-options="${position}">${optionChecks}</div>
+  </div>`;
 }
 
 function optionEditorRows(poll) {
@@ -236,9 +258,9 @@ function adminMarkup(poll, user, broadcastState) {
           <article class="screen-mapping-card">
             <div class="mapping-heading"><div><h3>กำหนดเนื้อหาแต่ละจอ</h3><span>เปลี่ยนได้อิสระโดยไม่ต้องสลับ URL ที่ตั้งไว้กับ LED processor</span></div><div class="mapping-presets"><button type="button" data-screen-preset="results">ผลโพล 3 จอ</button><button type="button" data-screen-preset="question">จอกลางเป็นคำถาม</button><button type="button" data-screen-preset="total">จอกลางเป็นยอดรวม</button></div></div>
             <div class="screen-map-grid">
-              ${screenContentSelect("left", "จอซ้าย", "512 × 896", presentation.screenAssignments.left, poll)}
+              ${sideScreenContentPicker("left", "จอซ้าย", "512 × 896", presentation.screenAssignments.left, poll)}
               ${screenContentSelect("center", "จอกลาง", "1530 × 896", presentation.screenAssignments.center, poll)}
-              ${screenContentSelect("right", "จอขวา", "512 × 896", presentation.screenAssignments.right, poll)}
+              ${sideScreenContentPicker("right", "จอขวา", "512 × 896", presentation.screenAssignments.right, poll)}
             </div>
           </article>
           <div class="preview-heading"><div><h3>ตัวอย่างสดทั้ง 3 จอ</h3><span>แสดงตาม Screen Mapping และเปลี่ยนทันทีขณะปรับข้อมูล</span></div><div class="preview-tabs"><button type="button" data-preview-tab="combined" class="active">จอกลาง</button><button type="button" data-preview-tab="gold">จอซ้าย</button><button type="button" data-preview-tab="property">จอขวา</button></div></div>
@@ -390,6 +412,44 @@ export async function renderAdmin(root) {
       indicator.innerHTML = "<i></i> มีการเปลี่ยนแปลงที่ยังไม่บันทึก";
     };
 
+    const syncSidePicker = (position) => {
+      const assignment = draft.presentation.screenAssignments[position];
+      const mode = ["question", "combined", "total"].includes(assignment) ? assignment : "options";
+      const modeSelect = root.querySelector(`[data-side-mode="${position}"]`);
+      const checklist = root.querySelector(`[data-side-options="${position}"]`);
+      if (!modeSelect || !checklist) return;
+      let selectedIds = optionIdsForContent(assignment, draft);
+      if (mode === "options" && !selectedIds.length) {
+        const fallback = draft.options[position === "left" ? 0 : Math.min(1, draft.options.length - 1)];
+        selectedIds = fallback ? [fallback.id] : [];
+      }
+      modeSelect.value = mode;
+      checklist.classList.toggle("is-disabled", mode !== "options");
+      checklist.querySelectorAll("[data-side-option-position]").forEach((checkbox) => {
+        checkbox.checked = selectedIds.includes(checkbox.value);
+        checkbox.disabled = mode !== "options";
+      });
+    };
+
+    const updateSideAssignment = (position) => {
+      const checklist = root.querySelector(`[data-side-options="${position}"]`);
+      const checkboxes = [...checklist.querySelectorAll("[data-side-option-position]")];
+      let selectedIds = checkboxes.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value);
+      if (!selectedIds.length) {
+        const fallbackIndex = position === "left" ? 0 : Math.min(1, checkboxes.length - 1);
+        const fallback = checkboxes[fallbackIndex];
+        if (fallback) {
+          fallback.checked = true;
+          selectedIds = [fallback.value];
+          toast("จอด้านข้างต้องมีอย่างน้อย 1 ตัวเลือก", "warning");
+        }
+      }
+      draft.presentation.screenAssignments[position] = optionContentForIds(selectedIds, draft);
+      syncSidePicker(position);
+      updatePreviews();
+      markDirty();
+    };
+
     const loadHistory = async () => {
       const list = root.querySelector("#history-list");
       list.innerHTML = '<div class="history-empty">กำลังโหลดประวัติ…</div>';
@@ -483,6 +543,25 @@ export async function renderAdmin(root) {
       if (input.tagName === "SELECT") input.addEventListener("change", listener);
     });
 
+    root.querySelectorAll("[data-side-mode]").forEach((select) => select.addEventListener("change", () => {
+      const position = select.dataset.sideMode;
+      if (select.value === "options") {
+        updateSideAssignment(position);
+        return;
+      }
+      draft.presentation.screenAssignments[position] = select.value;
+      syncSidePicker(position);
+      updatePreviews();
+      markDirty();
+    }));
+
+    root.querySelectorAll("[data-side-option-position]").forEach((checkbox) => checkbox.addEventListener("change", () => {
+      const position = checkbox.dataset.sideOptionPosition;
+      const modeSelect = root.querySelector(`[data-side-mode="${position}"]`);
+      modeSelect.value = "options";
+      updateSideAssignment(position);
+    }));
+
     root.querySelectorAll("[data-option-field]").forEach((input) => input.addEventListener("input", () => {
       const optionIndex = draft.options.findIndex((option) => option.id === input.dataset.optionId);
       if (optionIndex < 0) return;
@@ -517,7 +596,10 @@ export async function renderAdmin(root) {
       const removedId = button.dataset.removeOption;
       draft.options = draft.options.filter((option) => option.id !== removedId);
       for (const [position, content] of Object.entries(draft.presentation.screenAssignments)) {
-        if (content === `option:${removedId}`) draft.presentation.screenAssignments[position] = position === "left" ? "gold" : position === "right" ? "property" : "combined";
+        if (!/^options?:/.test(content)) continue;
+        const remainingIds = optionIdsForContent(content, draft);
+        draft.presentation.screenAssignments[position] = optionContentForIds(remainingIds, draft)
+          || (position === "left" ? "gold" : position === "right" ? "property" : "combined");
       }
       showDashboard(user, draft, true, draft.id).then(() => toast("ลบตัวเลือกแล้ว การเปลี่ยนแปลงยังไม่ขึ้นจอจนกว่าจะบันทึก"));
     });
@@ -546,9 +628,9 @@ export async function renderAdmin(root) {
         center: preset === "question" ? "question" : preset === "total" ? "total" : "combined",
         right: "property",
       };
-      for (const [position, value] of Object.entries(draft.presentation.screenAssignments)) {
-        root.querySelector(`[data-path="presentation.screenAssignments.${position}"]`).value = value;
-      }
+      root.querySelector('[data-path="presentation.screenAssignments.center"]').value = draft.presentation.screenAssignments.center;
+      syncSidePicker("left");
+      syncSidePicker("right");
       updatePreviews();
       markDirty();
       toast("เปลี่ยนรูปแบบเนื้อหา 3 จอแล้ว กรุณาตรวจตัวอย่างและกดบันทึก");

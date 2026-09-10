@@ -89,7 +89,8 @@ export function normalizePresentation(value = {}) {
   const fallback = clone(DEFAULT_PRESENTATION);
   const font = value.font || {};
   const allowedContent = (content) => ["question", "combined", "gold", "property", "total"].includes(content)
-    || /^option:[a-z0-9-]{1,48}$/i.test(String(content || ""));
+    || /^option:[a-z0-9-]{1,48}$/i.test(String(content || ""))
+    || /^options:[a-z0-9-]{1,48}(,[a-z0-9-]{1,48}){1,5}$/i.test(String(content || ""));
   const assignment = value.screenAssignments || {};
   return {
     displayMode: ["combined", "dual", "fullscreen"].includes(value.displayMode) ? value.displayMode : fallback.displayMode,
@@ -164,6 +165,18 @@ export function normalizePoll(value = {}) {
   presentation.colors.property = options[1].color;
   presentation.screens.gold = clone(options[0].visual);
   presentation.screens.property = clone(options[1].visual);
+  // Keep saved multi-screen mappings valid if an option was removed later.
+  const validOptionIds = new Set(options.map((option) => option.id));
+  for (const [position, content] of Object.entries(presentation.screenAssignments)) {
+    if (!/^options?:/.test(content)) continue;
+    const prefixLength = content.startsWith("options:") ? 8 : 7;
+    const selectedIds = [...new Set(content.slice(prefixLength).split(","))].filter((optionId) => validOptionIds.has(optionId));
+    presentation.screenAssignments[position] = selectedIds.length > 1
+      ? `options:${selectedIds.join(",")}`
+      : selectedIds.length === 1
+        ? `option:${selectedIds[0]}`
+        : position === "left" ? "gold" : position === "right" ? "property" : "combined";
+  }
   return {
     id,
     question: String(value.question || fallback.question).trim().slice(0, 240),
