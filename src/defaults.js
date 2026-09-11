@@ -11,6 +11,7 @@ export const DEFAULT_OPTION_COLORS = Object.freeze(["#8a5c12", "#0d6348", "#315c
 
 export const DEFAULT_PRESENTATION = Object.freeze({
   displayMode: "combined",
+  questionSubtitle: "ร่วมแสดงความคิดเห็นของคุณ",
   screenAssignments: {
     left: "gold",
     center: "combined",

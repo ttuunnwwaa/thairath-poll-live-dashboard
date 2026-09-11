@@ -93,6 +93,7 @@ insert into public.polls (
   320,
   '{
     "displayMode": "combined",
+    "questionSubtitle": "ร่วมแสดงความคิดเห็นของคุณ",
     "screenAssignments": {"left": "gold", "center": "combined", "right": "property"},
     "font": {
       "name": "Noto Sans Thai",

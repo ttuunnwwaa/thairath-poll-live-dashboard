@@ -17,7 +17,7 @@ function brandMarkup(compact = false) {
   </div>`;
 }
 
-function optionMarkup(option, poll, index, compact = false, surfaceKey = null) {
+function optionMarkup(option, poll, index, compact = false, surfaceKey = null, showVotes = true) {
   const stats = pollStats(poll);
   const result = stats.options.find((item) => item.id === option.id) || stats.options[index];
   const variant = surfaceKey || (index === 0 ? "gold" : index === 1 ? "property" : "custom");
@@ -29,7 +29,7 @@ function optionMarkup(option, poll, index, compact = false, surfaceKey = null) {
       <p class="option-kicker">ผลสำรวจความคิดเห็น</p><h2 class="option-name">${escapeHtml(option.label)}</h2>
       <div class="option-result"><strong class="animated-number option-percent" data-value="${result.percent}" data-format="percent">${formatPercent(result.percent)}</strong><span>%</span></div>
       <div class="option-meter" aria-label="${formatPercent(result.percent)} เปอร์เซ็นต์"><i style="width:${result.percent}%"></i></div>
-      <p class="option-votes"><strong class="animated-number" data-value="${result.votes}" data-format="number">${formatNumber(result.votes)}</strong> คะแนน</p>
+      ${showVotes ? `<p class="option-votes"><strong class="animated-number" data-value="${result.votes}" data-format="number">${formatNumber(result.votes)}</strong> คะแนน</p>` : ""}
     </div><span class="option-index">${String(index + 1).padStart(2, "0")}</span>
   </article>`;
 }
@@ -65,7 +65,7 @@ function resultsMarkup(content, poll, physicalType) {
   const stats = pollStats(poll);
   if (content === "question") return html`<article class="question-stage">
     <p>THAIRATH POLL · คำถามวันนี้</p><h2>${escapeHtml(poll.question)}</h2>
-    <span>ร่วมแสดงความคิดเห็นของคุณ</span><i aria-hidden="true"></i>
+    <span>${escapeHtml(poll.presentation.questionSubtitle)}</span><i aria-hidden="true"></i>
   </article>`;
   const optionIds = optionIdsForContent(content, poll);
   if (optionIds.length) {
@@ -73,7 +73,7 @@ function resultsMarkup(content, poll, physicalType) {
     const compact = content === "combined" || optionIds.length > 1;
     return optionIds.map((optionId) => {
       const index = poll.options.findIndex((option) => option.id === optionId);
-      return optionMarkup(poll.options[index], poll, index, compact, surfaceKey);
+      return optionMarkup(poll.options[index], poll, index, compact, surfaceKey, physicalType !== "combined");
     }).join("");
   }
   return html`<article class="total-stage">
@@ -88,14 +88,15 @@ export function displayMarkup(poll, physicalType = "combined", { preview = false
   const isPhysicalCenter = physicalType === "combined";
   const displayedOptionIds = optionIdsForContent(content, poll);
   const optionCount = displayedOptionIds.length;
+  const isCenterResults = isPhysicalCenter && optionCount > 0;
   const isMultiple = content === "combined" || content.startsWith("options:");
   const contentClass = content.startsWith("options:") ? "multiple" : content;
   const optionGridClass = isMultiple ? `option-grid--${optionCount}` : "";
-  return html`<main class="display-shell display-shell--${physicalType} display-content--${contentClass} ${preview ? "is-preview" : ""}" data-content="${content}" data-phase="${phase}">
+  return html`<main class="display-shell display-shell--${physicalType} display-content--${contentClass} ${isCenterResults ? "is-percentage-only" : ""} ${preview ? "is-preview" : ""}" data-content="${content}" data-phase="${phase}">
     <header class="display-header">${brandMarkup(!isPhysicalCenter)}<p class="display-question">${escapeHtml(poll.question)}</p></header>
     <section class="display-results ${isMultiple ? "display-results--multiple" : "display-results--single"} ${optionCount > 2 ? "has-many-options" : ""} ${optionGridClass} result-count--${optionCount}" data-option-count="${optionCount}">${resultsMarkup(content, poll, physicalType)}</section>
     <footer class="display-footer">
-      <div><span>ยอดโหวตรวม</span><strong class="animated-number" data-value="${stats.total}" data-format="number">${formatNumber(stats.total)}</strong><small>คะแนน</small></div>
+      ${isCenterResults ? "" : `<div><span>ยอดโหวตรวม</span><strong class="animated-number" data-value="${stats.total}" data-format="number">${formatNumber(stats.total)}</strong><small>คะแนน</small></div>`}
       <div class="updated-copy"><span>อัปเดตล่าสุด</span><time>${formatThaiDate(poll.updated_at)}</time></div>
     </footer>
     ${preview ? "" : '<button class="fullscreen-control" type="button" aria-label="เปิดเต็มจอ" title="เปิดเต็มจอ">⛶</button>'}
@@ -233,6 +234,8 @@ export function updateDisplay(root, poll, physicalType = "combined", { rebuild =
   root.querySelector(".display-question").textContent = poll.question;
   const questionStage = root.querySelector(".question-stage h2");
   if (questionStage) questionStage.textContent = poll.question;
+  const questionSubtitle = root.querySelector(".question-stage > span");
+  if (questionSubtitle) questionSubtitle.textContent = poll.presentation.questionSubtitle;
   root.querySelector(".updated-copy time").textContent = formatThaiDate(poll.updated_at);
   root.querySelectorAll(".display-footer .animated-number, .total-stage .animated-number").forEach((element) => animateValue(element, stats.total, animationDuration));
   root.querySelectorAll("[data-option-id]").forEach((screen) => {

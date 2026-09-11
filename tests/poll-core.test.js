@@ -49,11 +49,59 @@ test("preserves LED layout defaults when presentation is partial", () => {
   assert.equal(poll.presentation.branding.showLogo, true);
   assert.equal(poll.presentation.branding.logoSize, 82);
   assert.equal(poll.presentation.animation.speed, 1);
+  assert.equal(poll.presentation.questionSubtitle, "ร่วมแสดงความคิดเห็นของคุณ");
   assert.deepEqual(poll.presentation.screenAssignments, {
     left: "gold",
     center: "combined",
     right: "property",
   });
+});
+
+test("preserves question spacing, line breaks, and editable subtitle", () => {
+  const question = "  บรรทัดแรก\nบรรทัดที่สอง   เว้นวรรค  ";
+  const subtitle = "ร่วมโหวต\nได้ที่นี่";
+  const poll = normalizePoll({ question, presentation: { questionSubtitle: subtitle } });
+  assert.equal(poll.question, question);
+  assert.equal(poll.presentation.questionSubtitle, subtitle);
+  const markup = displayMarkup(poll, "combined", { phase: "question" });
+  assert.ok(markup.includes(question));
+  assert.ok(markup.includes(subtitle));
+});
+
+test("center result display omits vote counts but keeps calculated percentages", () => {
+  const poll = normalizePoll({ votes_gold: 75, votes_property: 25 });
+  const centerMarkup = displayMarkup(poll, "combined", { phase: "results" });
+  assert.match(centerMarkup, /75[,.]0/);
+  assert.match(centerMarkup, /25[,.]0/);
+  assert.doesNotMatch(centerMarkup, /option-votes/);
+  assert.doesNotMatch(centerMarkup, /ยอดโหวตรวม/);
+
+  const sideMarkup = displayMarkup(poll, "gold", { phase: "results" });
+  assert.match(sideMarkup, /option-votes/);
+  assert.match(sideMarkup, /ยอดโหวตรวม/);
+});
+
+test("keeps independent visual settings for both poll sets", () => {
+  const first = normalizePoll({
+    id: POLL_IDS[0],
+    presentation: { questionSubtitle: "ข้อความชุดหนึ่ง", font: { question: 24, asset: 20, percent: 48, votes: 14, secondary: 12 } },
+  });
+  const second = normalizePoll({
+    id: POLL_IDS[1],
+    presentation: { questionSubtitle: "ข้อความชุดสอง", font: { question: 96, asset: 72, percent: 180, votes: 48, secondary: 36 } },
+  });
+  assert.equal(first.presentation.questionSubtitle, "ข้อความชุดหนึ่ง");
+  assert.equal(first.presentation.font.question, 24);
+  assert.equal(first.presentation.font.asset, 20);
+  assert.equal(first.presentation.font.percent, 48);
+  assert.equal(first.presentation.font.votes, 14);
+  assert.equal(first.presentation.font.secondary, 12);
+  assert.equal(second.presentation.questionSubtitle, "ข้อความชุดสอง");
+  assert.equal(second.presentation.font.question, 96);
+  assert.equal(second.presentation.font.asset, 72);
+  assert.equal(second.presentation.font.percent, 180);
+  assert.equal(second.presentation.font.votes, 48);
+  assert.equal(second.presentation.font.secondary, 36);
 });
 
 test("normalizes display background colors and rejects invalid values", () => {

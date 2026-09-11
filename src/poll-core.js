@@ -94,6 +94,7 @@ export function normalizePresentation(value = {}) {
   const assignment = value.screenAssignments || {};
   return {
     displayMode: ["combined", "dual", "fullscreen"].includes(value.displayMode) ? value.displayMode : fallback.displayMode,
+    questionSubtitle: String(value.questionSubtitle ?? fallback.questionSubtitle).slice(0, 120),
     screenAssignments: {
       left: allowedContent(assignment.left) ? assignment.left : fallback.screenAssignments.left,
       center: allowedContent(assignment.center) ? assignment.center : fallback.screenAssignments.center,
@@ -179,7 +180,7 @@ export function normalizePoll(value = {}) {
   }
   return {
     id,
-    question: String(value.question || fallback.question).trim().slice(0, 240),
+    question: String(value.question ?? fallback.question).slice(0, 240),
     option_gold: options[0].label,
     option_property: options[1].label,
     votes_gold: options[0].votes,

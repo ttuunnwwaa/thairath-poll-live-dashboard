@@ -233,6 +233,7 @@ function adminMarkup(poll, user, broadcastState) {
           <div class="editor-grid">
             <article class="panel-card poll-editor-card">
               <label>คำถามโพล<textarea data-path="question" rows="3" maxlength="240">${escapeHtml(poll.question)}</textarea><small><span id="question-count">${poll.question.length}</span>/240 ตัวอักษร</small></label>
+              <label>ข้อความเชิญร่วมโหวตใต้คำถาม<textarea data-path="presentation.questionSubtitle" rows="2" maxlength="120">${escapeHtml(presentation.questionSubtitle)}</textarea><small>ใช้บนหน้าคำถามของโพลชุดนี้ · <span id="question-subtitle-count">${presentation.questionSubtitle.length}</span>/120 ตัวอักษร</small></label>
               <div class="option-list" id="option-list">${optionEditorRows(poll)}</div>
               <button class="button button--ghost add-option-button" id="add-option" type="button" ${poll.options.length >= MAX_POLL_OPTIONS ? "disabled" : ""}>＋ เพิ่มตัวเลือก <small>${poll.options.length}/${MAX_POLL_OPTIONS}</small></button>
             </article>
@@ -396,6 +397,7 @@ export async function renderAdmin(root) {
       root.querySelector("#summary-total").textContent = formatNumber(stats.total);
       root.querySelector("#summary-options").innerHTML = summaryOptionsMarkup(draft);
       root.querySelector("#question-count").textContent = draft.question.length;
+      root.querySelector("#question-subtitle-count").textContent = draft.presentation.questionSubtitle.length;
     };
 
     const updatePreviews = () => {
@@ -679,8 +681,10 @@ export async function renderAdmin(root) {
 
     root.querySelector("#reset-layout").addEventListener("click", () => {
       const currentMode = draft.presentation.displayMode;
+      const currentQuestionSubtitle = draft.presentation.questionSubtitle;
       draft.presentation = clone(DEFAULT_PRESENTATION);
       draft.presentation.displayMode = currentMode;
+      draft.presentation.questionSubtitle = currentQuestionSubtitle;
       draft.options.forEach((option, index) => {
         option.visual = clone(DEFAULT_PRESENTATION.screens[index === 1 ? "property" : "gold"]);
       });
